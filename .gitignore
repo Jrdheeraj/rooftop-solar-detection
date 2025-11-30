@@ -205,3 +205,19 @@ cython_debug/
 marimo/_static/
 marimo/_lsp/
 __marimo__/
+# Environment
+.env
+# data (keep only a small sample if needed)
+data/raw/EI_train_data.xlsx
+data/processed/train_images/
+data/processed/dataset/images/
+outputs/
+
+# cache & env
+__pycache__/
+venv/
+.env
+
+# models
+*.pt
+*.onnx
