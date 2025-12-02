@@ -180,12 +180,12 @@ if __name__ == '__main__':
     
     # Step 2: Copy images and create labels with train/val/test split
     creator.copy_and_split_images(
-        source_dir='data/processed/train_images',
-        metadata_file='data/processed/train_images/metadata.json',
-        train_ratio=0.8,
-        val_ratio=0.1
-    )
-    
+    source_dir='data/processed/images_all',
+    metadata_file='data/processed/images_all/metadata.json',
+    train_ratio=0.8,
+    val_ratio=0.1
+)
+
     # Step 3: Create dataset.yaml
     creator.create_dataset_yaml()
     
