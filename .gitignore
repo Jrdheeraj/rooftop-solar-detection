@@ -110,3 +110,4 @@ outputs/*
 !outputs/prediction_test.jpg
 !outputs/predictions_final.json
 !outputs/logs/
+solar_yolo_dataset.zip
