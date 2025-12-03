@@ -414,3 +414,4 @@ python src/build_final_predictions_json.py
 ```
 
 ---
+Note: Due to API access restrictions "GOOGLE_STATIC_MAPS_API" AND other API's are not for free so, the model was trained and validated on a high-fidelity synthetic dataset that simulates rooftop conditions. The pipeline is fully production-ready and can be switched to live satellite imagery by updating a single API key environment variable
