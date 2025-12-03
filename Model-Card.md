@@ -12,7 +12,7 @@ Use this notebook to reproduce or extend the experiments documented in this mode
 
 ## Overview
 
-This project implements an AI-powered pipeline to detect rooftop solar PV systems and estimate panel area for each site in the EcoInnovators Ideathon 2026 challenge.[file:3] Given a list of geographic coordinates (sample_id, latitude, longitude), the system loads a pre-generated 400×400 rooftop image, runs a YOLO-based model, and produces a JSON prediction per site with has_solar, confidence, estimated PV area, QC status, and minimal image metadata.[file:3]
+This project implements an AI-powered pipeline to detect rooftop solar PV systems and estimate panel area.[file:3] Given a list of geographic coordinates (sample_id, latitude, longitude), the system loads a pre-generated 400×400 rooftop image, runs a YOLO-based model, and produces a JSON prediction per site with has_solar, confidence, estimated PV area, QC status, and minimal image metadata.[file:3]
 
 ---
 
@@ -70,3 +70,7 @@ To make this pipeline production-ready on real imagery:
 
 ---
 
+## Intended use
+
+- remotely verifying rooftop solar installations, with a focus on auditability and reproducibility.[file:3]
+- Not intended as the sole source of truth; must be combined with on-ground checks and expert review.
