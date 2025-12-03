@@ -1,26 +1,43 @@
+# Core Dependencies
 ultralytics==8.2.0
 torch==2.1.0
 torchvision==0.16.0
+
+# Image & Data Processing
 opencv-python==4.8.1.78
 numpy==1.24.3
 Pillow==10.0.0
 pandas==2.1.0
 openpyxl==3.1.2
+
+# Web & API
 requests==2.31.0
-matplotlib==3.8.1
-scikit-learn==1.3.2
-shapely==2.0.1
+aiohttp==3.9.1
 fastapi==0.104.1
 uvicorn==0.24.0
+python-multipart==0.0.6
+
+# Visualization & Analysis
+matplotlib==3.8.1
+seaborn==13.0
+scikit-learn==1.3.2
+scipy==1.11.3
+
+# Geospatial & Geometry
+shapely==2.0.1
+
+# Configuration & Environment
 python-dotenv==1.0.0
 pydantic==2.5.0
-aiohttp==3.9.1
-tqdm==4.66.1
 pyyaml==6.0.1
+
+# Utilities
+tqdm==4.66.1
+
+# Testing & Code Quality
 pytest==7.4.3
 black==23.12.0
 pylint==3.0.3
+
+# ML Monitoring & Logging
 tensorboard==2.15.1
-scipy==1.11.3
-seaborn==0.13.0
-python-multipart
