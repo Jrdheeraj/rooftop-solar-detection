@@ -1,7 +1,3 @@
-# 🌞 Rooftop Solar Detection – EcoInnovators Ideathon 2026
-
-**AI-powered pipeline to detect rooftop solar PV systems and estimate panel area for governance verification across India.**
-
 # 🌞 Rooftop Solar Detection
 
 **AI-powered pipeline to detect rooftop solar PV systems and estimate panel area.**
@@ -354,9 +350,7 @@ See `Model-Card.md` for detailed retraining guidance.
 
 ## 🤝 Contributors
 
-- **Author**: [Your Name / Team Name]
-- **Challenge**: EcoInnovators Ideathon 2026 (AI-Powered Rooftop PV Detection)
-- **Institution**: Viswam Engineering College / [Your Institution]
+- **Author**: [KANNEMADUGU DHEERAJ]
 - **Submission Date**: December 6, 2025
 
 ---
@@ -393,9 +387,6 @@ This project is licensed under the **MIT License**. See `LICENSE` file for detai
 - 🐳 **[Dockerfile](./Dockerfile)** – Container environment
 - 🔧 **[Requirements](./requirements.txt)** – Dependencies
 
-- 🎯 **[Challenge PDF](https://drive.google.com/file/d/1Z-placeholder/view)** – Official challenge document
-
-
 ---
 
 ## 🚀 Getting Started in 5 Minutes
@@ -424,9 +415,5 @@ python src/build_final_predictions_json.py
 ---
 
 
-**Last Updated:** December 3, 2025  
-**Status:** ✅ Ready for EcoInnovators Ideathon 2026 submission  
-**Challenge Deadline:** December 6, 2025
-
-Note: Due to API access restrictions "GOOGLE_STATIC_MAPS_API" AND other API's are not for free so, the model was trained and validated on a high-fidelity synthetic dataset that simulates rooftop conditions. The pipeline is fully production-ready and can be switched to live satellite imagery by updating a single API key environment variable
+Note: Due to API access restrictions (Google Static Maps and other imagery APIs are not free at scale), the model was trained and validated on a high-fidelity synthetic dataset that simulates rooftop conditions. The pipeline is fully production-ready and can be switched to live satellite imagery by updating the image-fetch component to use a permitted imagery API and API key.
 
