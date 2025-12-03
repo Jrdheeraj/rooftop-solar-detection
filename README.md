@@ -1,6 +1,6 @@
-# 🌞 Rooftop Solar Detection – EcoInnovators Ideathon 2026
+# 🌞 Rooftop Solar Detection
 
-**AI-powered pipeline to detect rooftop solar PV systems and estimate panel area for governance verification across India.**
+**AI-powered pipeline to detect rooftop solar PV systems and estimate panel area.**
 
 ---
 
@@ -387,7 +387,6 @@ This project is licensed under the **MIT License**. See `LICENSE` file for detai
 - 📋 **[Project Plan](./Project-Plan-JSON.json)** – Milestones & timeline
 - 🐳 **[Dockerfile](./Dockerfile)** – Container environment
 - 🔧 **[Requirements](./requirements.txt)** – Dependencies
-- 🎯 **[Challenge PDF](https://drive.google.com/file/d/1Z-placeholder/view)** – Official challenge document
 
 ---
 
@@ -415,7 +414,3 @@ python src/build_final_predictions_json.py
 ```
 
 ---
-
-**Last Updated:** December 3, 2025  
-**Status:** ✅ Ready for EcoInnovators Ideathon 2026 submission  
-**Challenge Deadline:** December 6, 2025
