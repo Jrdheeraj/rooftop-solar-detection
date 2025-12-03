@@ -100,14 +100,5 @@ data/raw/EI_train_data.xlsx
 data/processed/train_images/
 data/processed/dataset/images/
 
-# Model weights: ignore all by default, you will share best.pt via link in README
-models/*.pt
-*.onnx
 
-# Outputs: ignore everything, then explicitly keep the small files you need in repo
-outputs/*
-!outputs/batch_results.csv
-!outputs/prediction_test.jpg
-!outputs/predictions_final.json
-!outputs/logs/
 solar_yolo_dataset.zip
