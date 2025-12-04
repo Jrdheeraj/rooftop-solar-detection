@@ -95,7 +95,7 @@ class YOLODatasetCreator:
             
             for meta in tqdm(split_data):
                 sample_id = meta['sample_id']
-                has_solar = meta['has_solar']
+                has_solar = meta['hassolar']
                 
                 # Copy image file
                 src_img = meta['image_path']

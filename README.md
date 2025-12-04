@@ -1,419 +1,336 @@
-# 🌞 Rooftop Solar Detection
+# Rooftop Solar Panel Detection from Overhead Imagery
 
-**AI-powered pipeline to detect rooftop solar PV systems and estimate panel area.**
+**End-to-end computer vision pipeline** for detecting and measuring solar panels on rooftops from Google Static Maps satellite imagery using YOLOv8 and geospatial buffer logic.
 
+## Overview
 
----
+This project:
+- **Trains** a YOLOv8 object detection model on an open rooftop-solar dataset (Roboflow export) in Google Colab.
+- **Infers** on Google Static Maps tiles, applying a two-stage buffer strategy (1,200 and 2,400 sq ft).
+- **Calculates** precise panel area intersection with buffers, handling partial overlaps and multiple detections.
+- **Outputs** a standardized JSON with solar panel predictions and quality assurance metadata.
 
-## 🔗 **IMPORTANT: Full Training Workflow & Dataset Preparation**
-
-### ⭐ **Google Colab Notebook (Complete Working Environment)**
-
-> **📌 All code for training, data preparation, and model development is available here:**
-
-### **🚀 [CLICK HERE – Open Google Colab Notebook](https://colab.research.google.com/drive/19fWK3RCAEcW48UqXbIJZ9mdCXM_gXHSz?usp=sharing)**
-
-This Colab notebook includes:
-
-- **Data preparation**: Loading `EI_train_data.xlsx`, organizing rooftop images.
-- **Synthetic dataset creation**: Generating YOLO-format training dataset.
-- **YOLOv8 model training**: Complete training pipeline with hyperparameter tuning.
-- **Model evaluation**: Computing F1 scores, loss curves, RMSE metrics.
-- **Checkpoint export**: Saving trained model as `solar_model_best.pt`.
-- **Inference examples**: Running predictions on test rooftops.
-- **Visualization**: Overlay masks and confidence scores.
-
-**To use this notebook:**
-
-1. Click the link above to open in Google Colab.
-2. Sign in with your Google account (free).
-3. Run cells sequentially (or use "Runtime" → "Run all").
-4. Download trained model and logs when done.
+> **Data Compliance**: The model trains on open, publicly available imagery only (not Google Static Maps). Inference runs on Google tiles, which is permitted under their terms for non-commercial mapping use.
 
 ---
 
-## 📋 Project Overview
-
-This project answers a critical governance question for India's PM Surya Ghar scheme:
-
-> **"Has a rooftop solar system actually been installed at this coordinate (latitude, longitude)?"**
-
-The pipeline:
-
-1. **Fetches** 400×400 rooftop tile images for each sample location.
-2. **Classifies** presence/absence of solar PV using a trained YOLO computer vision model.
-3. **Quantifies** estimated PV panel area (in square metres) if panels are detected.
-4. **Produces** audit-friendly JSON records and visualization overlays.
-5. **Stores** results in governance-ready format for verification workflows.
-
-**Current Status:** Model trained on synthetic data; designed for rapid deployment and retraining on real aerial imagery.
-
----
-
-## 📁 Repository Structure
+## Project Structure
 
 ```
 rooftop-solar-detection/
-├── README.md                          # This file
-├── Dockerfile                         # Containerized environment
-├── requirements.txt                   # Python dependencies
-├── Model-Card.md                      # 2–3 page model card
-├── Executive-Summary.md               # High-level summary
-├── Technical-Architecture-JSON.md     # System architecture
-├── Project-Plan-JSON.json             # Project milestones
 │
-├── src/                               # Main Python code
-│   ├── image_fetcher.py              # Fetch/load rooftop images
-│   ├── yolo_dataset_creator.py       # Build YOLO training dataset
-│   ├── model_trainer.py              # YOLO training script
-│   ├── inference.py                  # Single-image inference
-│   ├── export_rooftop_json.py        # Batch inference (generates solar_rooftops.json)
-│   └── build_final_predictions_json.py  # Convert to challenge schema
-│
-├── config/                            # Configuration files
-│   ├── solar_data.yaml               # YOLO dataset config
-│   └── training_config.json          # Hyperparameters
+├── config/                             # Configuration files
 │
 ├── data/
 │   ├── raw/
-│   │   └── EI_train_data.csv         # Training metadata (sampleid, lat, lon, has_solar)
+│   │   └── EI_train_data.csv           # Input: (sample_id, latitude, longitude)
 │   └── processed/
-│       ├── images_all/               # 400×400 rooftop image tiles
-│       └── dataset/                  # YOLO-format training/val/test split
+│       ├── dataset/                    # YOLOv8 training dataset
+│       │   ├── images/
+│       │   │   ├── train/              # 500+ training tiles
+│       │   │   └── val/                # 100+ validation tiles
+│       │   ├── labels/
+│       │   │   ├── train/              # YOLO format annotations (.txt)
+│       │   │   └── val/
+│       │   └── data.yaml               # Dataset config (Roboflow export)
+│       └── google_images_all/          # Downloaded Google tiles: {sample_id}.jpg
 │
 ├── models/
-│   └── solar_model_best.pt           # Trained YOLO checkpoint
+│   └── solar_model_best.pt             # YOLOv8n weights (trained in Colab, ~50 epochs)
 │
-└── outputs/
-    ├── batch_results.csv             # Per-image detection summary
-    ├── predictions_final.json        # Final per-site predictions (challenge schema)
-    ├── prediction_test.jpg           # Example visualization overlay
-    └── logs/
-        ├── results.csv               # YOLO training logs (loss, F1, RMSE per epoch)
-        └── results.png               # Training metrics plot
+├── outputs/
+│   ├── solar_rooftops_google.json      # Intermediate: batch inference results
+│   └── predictions_final.json          # Final output: standardized predictions
+│
+├── src/
+│   ├── __init__.py                     # Python package marker
+│   │
+│   ├── inference.py                    # Core inference engine
+│   │   ├── AreaCalculator              # Bounding box ↔ area conversions (m², sq ft)
+│   │   ├── QCChecker                   # Quality assurance (sharpness, darkness, conf)
+│   │   └── SolarPanelInference         # Main: 1200→2400 buffer logic, panel selection
+│   │
+│   ├── export_rooftop_json.py          # Batch processor: CSV → intermediate JSON
+│   ├── build_final_predictions_json.py # Final processor: type casting + schema validation
+│   │
+│   ├── image_fetcher.py                # Google Static Maps API downloader
+│   ├── staticmaps_fetcher.py           # Legacy / alternative fetcher
+│   │
+│   ├── model_trainer.py                # (Reference) Local YOLOv8 training script
+│   ├── yolo_dataset_creator.py         # YOLO-format dataset utilities
+│   ├── augmentation.py                 # (Optional) Custom image augmentations
+│   ├── data_explorer.py                # (Optional) Exploratory data analysis
+│   └── api.py                          # (Optional) REST API / demo wrapper
+│
+├── notebooks/                          # (Optional) Jupyter notebooks for exploration
+│
+├── tests/                              # (Optional) Unit tests
+│
+├── .env.example                        # Environment variables template (API keys, paths)
+├── .gitignore
+├── requirements.txt                    # Python dependencies
+├── Dockerfile                          # Container for inference
+├── docker-compose.yml                  # (Optional) Multi-service composition
+├── LICENSE
+├── Model-Card.md                       # Model documentation
+└── README.md                           # This file
 ```
 
 ---
 
-## 🔧 Environment Setup
+## Training Pipeline (Google Colab)
 
-### Option 1: Local Python (venv)
+**Training is performed in a dedicated Google Colab notebook:**
+
+- **Notebook URL**: https://colab.research.google.com/drive/1Cl9KowI1deMolhE3wjfg165TRbDsuX4-?usp=sharing
+- **Runtime**: GPU (A100 or T4)
+- **Time**: ~30–60 minutes for 50 epochs on ~640 images
+
+### Training Steps
+
+1. **Mount Google Drive**  
+   ```python
+   from google.colab import drive
+   drive.mount('/content/drive')
+   ```
+
+2. **Install YOLOv8**  
+   ```python
+   !pip install ultralytics
+   ```
+
+3. **Prepare Dataset**  
+   - Upload `dataset.zip` (Roboflow export) to Google Drive.
+   - Unzip into Colab workspace:
+
+   ```python
+   !unzip -q "/content/drive/My Drive/solar panel detection/dataset.zip" -d "/content/datasets"
+   ```
+
+4. **Train YOLOv8**  
+   ```python
+   !yolo detect train \
+     model=yolov8n.pt \
+     data=/content/datasets/dataset/data.yaml \
+     epochs=50 \
+     imgsz=640 \
+     batch=16
+   ```
+
+5. **Export Weights**  
+   ```python
+   from google.colab import files
+   files.download('/content/runs/detect/train/weights/best.pt')
+   ```
+
+6. **Deploy Locally**  
+   - Save downloaded `best.pt` to: `models/solar_model_best.pt`
+
+---
+
+## Inference Pipeline (Local / VS Code)
+
+### Prerequisites
 
 ```bash
-# Clone repository
-git clone https://github.com/yourusername/rooftop-solar-detection.git
+# Clone or navigate to project
 cd rooftop-solar-detection
 
 # Create virtual environment
 python -m venv venv
-
-# Activate venv
-.\venv\Scripts\Activate          # Windows
-# source venv/bin/activate       # Linux/Mac
+venv\Scripts\activate  # Windows
 
 # Install dependencies
-pip install --no-cache-dir -r requirements.txt
+pip install ultralytics opencv-python numpy pandas pyyaml
 ```
 
-### Option 2: Docker
+### Files Required
+
+Before running inference:
+
+- ✅ `models/solar_model_best.pt` (trained model)
+- ✅ `data/raw/EI_train_data.csv` (sample list)
+- ✅ `data/processed/google_images_all/{sample_id}.jpg` (Google tiles)
+
+### Running Inference
+
+**Option 1: Single-Sample Test**
 
 ```bash
-# Build Docker image
-docker build -t yourusername/rooftop-solar:latest .
-
-# Run container (generates outputs/predictions_final.json)
-docker run --rm yourusername/rooftop-solar:latest
-
-# Run with mounted local directory (optional)
-docker run --rm -v $(pwd)/outputs:/app/outputs yourusername/rooftop-solar:latest
+python src/inference.py
 ```
 
----
-
-## 📊 Data & Resources
-
-### Input Data
-
-**EcoInnovators provided metadata** (`EI_train_data.xlsx`):
-
-- `sample_id`: Unique identifier per rooftop.
-- `latitude`: WGS84 latitude (may have small geocoding jitter).
-- `longitude`: WGS84 longitude.
-- `has_solar`: Ground truth label (0 = no panels, 1 = panels present).
-
-**Rooftop Images**:
-
-- 400×400 pixel tiles stored in `data/processed/images_all/`.
-- Format: `.jpg`, RGB, sourced from synthetic/static sources (no Google paid imagery redistributed).
-
-### External Resources Used
-
-- **Ultralytics YOLOv8**: Object detection framework ([GitHub](https://github.com/ultralytics/ultralytics))
-- **PyTorch**: Deep learning backbone.
-- **OpenCV**: Image processing.
-- **Pandas, NumPy**: Data manipulation.
-- **Matplotlib**: Visualization.
-
-All libraries are open-source; no proprietary code or illegally obtained data is used.
-
----
-
-## 🚀 How to Run the Pipeline
-
-### Step 1: Generate Intermediate Rooftop JSON
-
-This runs YOLO inference on all images and aggregates detection metrics.
-
-```bash
-# Activate venv first
-.\venv\Scripts\Activate
-
-# Run inference on all rooftop images
-python src/export_rooftop_json.py
-```
-
-**Inputs:**
-- Images: `data/processed/images_all/*.jpg`
-- Model: `models/solar_model_best.pt`
-
-**Output:**
-- `outputs/solar_rooftops.json` – per-image detections (num_panels, panel_area_m2, confidence, etc.)
-
-### Step 2: Build Final Predictions in Challenge Schema
-
-Merges EI metadata with detection results and produces the mandatory output JSON.
-
-```bash
-python src/build_final_predictions_json.py
-```
-
-**Inputs:**
-- `outputs/solar_rooftops.json`
-- `data/raw/EI_train_data.csv`
-
-**Output:**
-- `outputs/predictions_final.json`
-
-**Each record follows the challenge schema:**
+Expected output (for sample_id=1234):
 
 ```json
 {
-  "sample_id": 1067,
+  "sample_id": 1234,
   "lat": 12.9716,
   "lon": 77.5946,
-  "has_solar": false,
-  "confidence": 0.0,
-  "pv_area_sqm_est": 0.0,
-  "buffer_radius_sqft": 1200,
-  "qc_status": "NOT_VERIFIABLE",
-  "bbox_or_mask": "[]",
+  "has_solar": true,
+  "confidence": 0.5277,
+  "pv_area_sqm_est": 2.83,
+  "buffer_radius_sqft": 2400,
+  "qc_status": "VERIFIABLE",
+  "bbox_or_mask": "0.4118,0.5786,0.0564,0.0539",
   "image_metadata": {
-    "source": "synthetic_static",
-    "capture_date": "N/A"
+    "source": "XYZ",
+    "capture_date": "YYYY-MM-DD"
   }
 }
 ```
 
-### Step 3: (Optional) Single-Image Inference & Visualization
+**Option 2: Batch Processing (All Samples)**
 
 ```bash
-python src/inference.py --image data/processed/images_all/1067.0.jpg --output outputs/prediction_test.jpg
+# Batch inference
+python -m src.export_rooftop_json
+
+# Final JSON construction
+python -m src.build_final_predictions_json
 ```
 
-Generates an overlay PNG with detected bounding boxes, confidence scores, and estimated panel area.
+Outputs:
+- `outputs/solar_rooftops_google.json` (intermediate, untyped)
+- `outputs/predictions_final.json` (final, schema-validated)
 
 ---
 
-## 🎓 Model Training & Logs
+## Core Algorithm: Buffer-Based Panel Detection
 
-### Training Workflow
+### Logic Flow
 
-**All training is conducted in the Colab notebook** (link at top of this README).
+1. **Load tile**: `data/processed/google_images_all/{sample_id}.jpg`
 
-The notebook implements:
+2. **Run YOLOv8**: Detect all panels in the image.
 
-1. **Data preparation**: Convert `EI_train_data.xlsx` into YOLO-format dataset splits.
-2. **Model instantiation**: Load YOLOv8 nano model.
-3. **Training loop**: 50 epochs, batch size 16, image size 400×400, with validation metrics.
-4. **Checkpoint saving**: Best model exported to `solar_model_best.pt`.
-5. **Log export**: Training metrics saved as `results.csv` and `results.png`.
+3. **Build buffer**: Create circular buffer (1,200 or 2,400 sq ft) centered on the tile.
 
-### Training Logs (EcoInnovators Requirement)
+4. **Compute intersections**:
+   - For each detected panel bbox:
+     - Convert YOLO format (center-based `x_c, y_c, w, h`) to normalized top-left (`x1, y1, w, h`).
+     - Compute intersection ratio with buffer:
+       ```
+       inter_ratio = area(panel ∩ buffer) / area(panel)
+       ```
+     - If `inter_ratio > 0`:
+       - Compute full panel area: `full_area_m² = bbox_area_m²(panel)`
+       - Compute inside area: `inside_area_m² = full_area_m² × inter_ratio`
+     - Append to valid panels list.
 
-**Location:** `outputs/logs/`
+5. **Select best panel**:
+   - Among all valid panels, pick the one with **max `inside_area_m²`**.
+   - Set `has_solar = True`, `pv_area_sqm_est = inside_area_m²`.
 
-- **`results.csv`**: Per-epoch metrics (loss, F1 score, RMSE, precision, recall).
-- **`results.png`**: Plot visualization of training/validation curves.
+6. **Two-pass rule**:
+   - Run with 1,200 sq ft buffer first.
+   - If `has_solar = True`, return 1,200-sq-ft record.
+   - If `has_solar = False`, run with 2,400 sq ft buffer.
+   - If 2,400 finds solar, return 2,400-sq-ft record.
+   - Otherwise, return 1,200-sq-ft "no solar" record.
 
-These satisfy the "Model Training Logs" deliverable requirement in the challenge PDF.
+7. **Quality control**:
+   - Compute image sharpness (Laplacian variance) and darkness ratio.
+   - Set `qc_status = "VERIFIABLE"` or `"NOT_VERIFIABLE"`.
 
-### Hyperparameters
+### Key Parameters
+
+| Parameter | Value | Notes |
+|-----------|-------|-------|
+| Model | YOLOv8n | Small, fast, sufficient for rooftop detection |
+| Image size | 640×640 px | Google Static Maps default; ~19 zoom level |
+| Buffer 1 | 1,200 sq ft | ~110 m radius; typical rooftop extent |
+| Buffer 2 | 2,400 sq ft | ~155 m radius; fallback for edge cases |
+| Confidence threshold | > 0 (all detections considered) | Filtering by intersection ratio |
+| Intersection ratio | > 0 (any overlap) | Panels partially inside buffer accepted |
+
+---
+
+## Output Schema
+
+Final JSON (`predictions_final.json`):
+
+```json
+[
+  {
+    "sample_id": 1234,
+    "lat": 12.9716,
+    "lon": 77.5946,
+    "has_solar": true,
+    "confidence": 0.5277,
+    "pv_area_sqm_est": 2.83,
+    "buffer_radius_sqft": 2400,
+    "qc_status": "VERIFIABLE",
+    "bbox_or_mask": "0.4118,0.5786,0.0564,0.0539",
+    "image_metadata": {
+      "source": "XYZ",
+      "capture_date": "YYYY-MM-DD"
+    }
+  },
+  ...
+]
+```
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `sample_id` | int | Unique tile identifier |
+| `lat`, `lon` | float | Coordinates (WGS84) |
+| `has_solar` | bool | Panel detected and inside buffer |
+| `confidence` | float | YOLO model confidence [0–1] |
+| `pv_area_sqm_est` | float | Panel area inside buffer (m²) |
+| `buffer_radius_sqft` | int | Buffer used: 1200 or 2400 |
+| `qc_status` | str | "VERIFIABLE" or "NOT_VERIFIABLE" |
+| `bbox_or_mask` | str | Normalized bbox: "x_c,y_c,w,h" or empty |
+| `image_metadata.source` | str | "XYZ" or data source name |
+| `image_metadata.capture_date` | str | "YYYY-MM-DD" or actual date |
+
+---
+
+## Dependencies
+
+See `requirements.txt`:
 
 ```
-Optimizer: SGD
-Learning rate: 0.01
-Epochs: 50
-Batch size: 16
-Image size: 400×400
-Augmentations: Flip, Mosaic, HSV (standard YOLO defaults)
+ultralytics>=8.0.0
+opencv-python>=4.6.0
+numpy>=1.23.0
+pandas>=1.5.0
+pyyaml>=5.3.1
+torch>=1.8.0
+torchvision>=0.9.0
 ```
 
 ---
 
-## 📄 Documentation
+## Docker (Optional)
 
-### Model Card (`Model-Card.md`)
-
-2–3 page technical document covering:
-
-- **Data**: Sources, preprocessing, train/val/test splits.
-- **Model**: YOLO architecture, layer configuration, pre-training.
-- **Assumptions**: Synthetic imagery, image quality, lighting conditions.
-- **Limitations**: Current model trained only on synthetic data; real-world performance untested.
-- **Known biases**: Potential urban/rural generalization gaps.
-- **Failure modes**: Heavy cloud cover, roof occlusion, ambiguous panel detection.
-- **Mitigation strategies**: Data augmentation, confidence thresholding, QC status flags.
-- **Retraining guidance**: Steps to retrain on real aerial imagery for production deployment.
-- **Ethics**: No private imagery used; open-source libraries only; documented assumptions.
-
-### Executive Summary (`Executive-Summary.md`)
-
-High-level overview:
-- Problem statement and motivation.
-- Solution approach.
-- Key results and performance metrics.
-- Path to production.
-
-### Technical Architecture (`Technical-Architecture-JSON.md`)
-
-End-to-end system architecture:
-- Data pipeline (ingestion → preprocessing → inference).
-- Model serving (Colab training, local/Docker inference).
-- Output schema and JSON structure.
-- QC checks and failure handling.
-
-### Project Plan (`Project-Plan-JSON.json`)
-
-Milestones and timeline:
-- Phase 1: Data preparation.
-- Phase 2: Model development.
-- Phase 3: Evaluation and optimization.
-- Phase 4: Deployment and documentation.
-
----
-
-## ✅ Challenge Deliverables Alignment
-
-This repository satisfies all EcoInnovators Ideathon 2026 requirements:
-
-| Deliverable | Status | Location |
-|---|---|---|
-| **GitHub repository** | ✅ | This repo |
-| **Clean code & README** | ✅ | `src/`, this README |
-| **Run instructions** | ✅ | "How to Run the Pipeline" section |
-| **Dockerfile** | ✅ | `Dockerfile` in root |
-| **Trained model file** | ✅ | `models/solar_model_best.pt` |
-| **Model card** | ✅ | `Model-Card.md` |
-| **Prediction files (JSON)** | ✅ | `outputs/predictions_final.json` |
-| **Prediction artifacts (overlays)** | ✅ | `outputs/prediction_test.jpg` |
-| **Training logs** | ✅ | `outputs/logs/results.csv`, `results.png` |
-| **Licensing statement** | ✅ | MIT License (see LICENSE file) |
-| **Source attribution** | ✅ | Documented in Model-Card.md |
-| **Bias documentation** | ✅ | Model-Card.md (Ethics section) |
-
----
-
-## 📋 Rules & Compliance
-
-- ✅ **Open-source libraries only**: Ultralytics, PyTorch, OpenCV, Pandas, etc.
-- ✅ **Permissible imagery**: Synthetic data; no illegally obtained or private imagery.
-- ✅ **No hard-coded answers**: Full inference pipeline; no test set memorization.
-- ✅ **MIT License**: Permissive, OSI-approved open-source license.
-- ✅ **Clear source attribution**: All external libraries cited.
-- ✅ **Documented biases**: Known limitations and mitigation strategies in Model-Card.
-
----
-
-## 🔄 Retraining on Real Imagery (For Production)
-
-To adapt this pipeline for real-world deployment:
-
-1. **Collect real rooftop imagery**: Aerial or satellite images (high-resolution recommended).
-2. **Label data**: Annotate panels with bounding boxes or segmentation masks using tools like Roboflow or CVAT.
-3. **Retrain model**: Update `data/processed/dataset/` with real annotations, run training in Colab.
-4. **Validate**: Evaluate on held-out test set before production deployment.
-5. **Deploy**: Use Docker to containerize and push to production environment.
-
-See `Model-Card.md` for detailed retraining guidance.
-
----
-
-## 🤝 Contributors
-
-- **Author**: [KANNEMADUGU DHEERAJ]
-- **Submission Date**: December 6, 2025
-
----
-
-## 📞 Support & Questions
-
-For questions or issues:
-
-1. Check this README's "How to Run the Pipeline" section.
-2. Review `Model-Card.md` for technical details and limitations.
-3. Open an issue on GitHub if you encounter bugs.
-
----
-
-## 📜 License
-
-This project is licensed under the **MIT License**. See `LICENSE` file for details.
-
-### Attribution
-
-- **YOLO**: Ultralytics YOLOv8 ([GitHub](https://github.com/ultralytics/ultralytics)) – AGPL-3.0
-- **PyTorch**: Meta AI ([pytorch.org](https://pytorch.org/)) – BSD
-- **Dataset**: EcoInnovators Ideathon 2026 (provided by challenge organizers)
-
----
-
-## 🎯 Quick Links
-
-- 📓 **[Colab Notebook](https://colab.research.google.com/drive/19fWK3RCAEcW48UqXbIJZ9mdCXM_gXHSz?usp=sharing)** – Full training & inference workflow
-- 📖 **[Model Card](./Model-Card.md)** – Technical documentation
-- 📊 **[Executive Summary](./Executive-Summary.md)** – High-level overview
-- 🏗️ **[Technical Architecture](./Technical-Architecture-JSON.md)** – System design
-- 📋 **[Project Plan](./Project-Plan-JSON.json)** – Milestones & timeline
-- 🐳 **[Dockerfile](./Dockerfile)** – Container environment
-- 🔧 **[Requirements](./requirements.txt)** – Dependencies
-
----
-
-## 🚀 Getting Started in 5 Minutes
+Build and run inference inside a container:
 
 ```bash
-# 1. Clone repo
-git clone https://github.com/yourusername/rooftop-solar-detection.git
-cd rooftop-solar-detection
-
-# 2. Set up environment
-python -m venv venv
-.\venv\Scripts\Activate  # Windows
-
-# 3. Install dependencies
-pip install -r requirements.txt
-
-# 4. Run inference on all rooftops
-python src/export_rooftop_json.py
-
-# 5. Generate final predictions
-python src/build_final_predictions_json.py
-
-# ✅ Output: outputs/predictions_final.json
+docker build -t rooftop-solar-detection .
+docker run -v $(pwd)/data:/app/data \
+           -v $(pwd)/models:/app/models \
+           -v $(pwd)/outputs:/app/outputs \
+           rooftop-solar-detection \
+           python -m src.export_rooftop_json
 ```
 
 ---
 
+## References
 
-Note: Due to API access restrictions (Google Static Maps and other imagery APIs are not free at scale), the model was trained and validated on a high-fidelity synthetic dataset that simulates rooftop conditions. The pipeline is fully production-ready and can be switched to live satellite imagery by updating the image-fetch component to use a permitted imagery API and API key.
+- **YOLOv8 Docs**: https://docs.ultralytics.com/
+- **Roboflow Universe**: https://universe.roboflow.com/
+- **Web Mercator Projection**: https://en.wikipedia.org/wiki/Web_Mercator_projection
 
+---
+
+## License
+
+See LICENSE file.
+
+---
+
+## Contact & Support
+
+For issues or questions, open a GitHub issue or reach out to the maintainer.

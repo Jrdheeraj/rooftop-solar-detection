@@ -1,60 +1,60 @@
-# Dockerfile for rooftop-solar-detection
-# Multi-stage build for optimized production image
+# Use official Python 3.10 slim image
+FROM python:3.10-slim
 
-FROM python:3.11-slim
-
-# Set metadata
-LABEL maintainer="EcoInnovators Team"
-LABEL description="AI-powered rooftop solar detection system"
-LABEL version="1.0"
+# Set working directory
+WORKDIR /app
 
 # Set environment variables
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
-    PIP_NO_CACHE_DIR=1 \
-    PYTHONPATH=/app
+    PIP_NO_CACHE_DIR=1
 
-# Set work directory
-WORKDIR /app
-
-# Install system dependencies
+# Install system dependencies for OpenCV and other libraries
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     libsm6 \
     libxext6 \
     libxrender-dev \
+    libgl1-mesa-glx \
     libgomp1 \
+    git \
     curl \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy dependency list
+# Copy requirements
 COPY requirements.txt .
 
 # Install Python dependencies
 RUN pip install --upgrade pip setuptools wheel && \
-    pip install --no-cache-dir -r requirements.txt
+    pip install -r requirements.txt
 
-# Copy source code
-COPY src/ src/
-COPY config/ config/
-COPY data/raw/ data/raw/
-COPY models/ models/
-COPY outputs/ outputs/
+# Copy project files
+COPY . .
 
-# Create non-root user for security
-RUN useradd -m -u 1000 appuser && \
-    chown -R appuser:appuser /app
-USER appuser
+# Create necessary directories
+RUN mkdir -p outputs logs models data/processed data/raw
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
-    CMD python -c "import sys; sys.exit(0)" || exit 1
+# Verify model weights exist or create placeholder
+RUN if [ ! -f models/solar_model_best.pt ]; then \
+        echo "Warning: models/solar_model_best.pt not found. Please download from Colab."; \
+    fi
 
-# Expose port for API (if running FastAPI)
-EXPOSE 8000
+# Expose port (optional, for API server)
+EXPOSE 5000 8000
 
-# Default command: Generate predictions
-CMD ["python", "src/build_final_predictions_json.py"]
+# Health check: verify model can be loaded
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+    CMD python -c "from ultralytics import YOLO; print('YOLO loaded successfully')" || exit 1
 
-# Alternative command for interactive use:
-# CMD ["/bin/bash"]
+# Default command: run batch inference
+CMD ["python", "-m", "src.export_rooftop_json"]
+
+# Optional entry point for flexibility
+# Uncomment to use:
+# ENTRYPOINT ["python"]
+# CMD ["-m", "src.export_rooftop_json"]
+
+# Alternative commands (override at runtime):
+# docker run ... python -m src.build_final_predictions_json
+# docker run ... python src/inference.py
+# docker run ... python src/api.py

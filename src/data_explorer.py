@@ -4,9 +4,9 @@ from pathlib import Path
 
 
 class DataExplorer:
-    def __init__(self, xlsx_path):
-        self.df = pd.read_excel(xlsx_path)
-        self.xlsx_path = xlsx_path
+    def __init__(self, csv_path):
+        self.df = pd.read_csv(csv_path)
+        self.csv_path = csv_path
     
     def explore(self):
         """Print comprehensive data exploration"""
@@ -33,7 +33,7 @@ class DataExplorer:
         
         # Solar panel distribution
         print(f"\n☀️ SOLAR PANEL DISTRIBUTION:")
-        solar_counts = self.df['has_solar'].value_counts()
+        solar_counts = self.df['hassolar'].value_counts()
         for label, count in solar_counts.items():
             percentage = (count / len(self.df)) * 100
             status = "✅ HAS PANEL" if label == 1 else "❌ NO PANEL"
@@ -46,10 +46,8 @@ class DataExplorer:
         print(f"   Mean latitude: {self.df['latitude'].mean():.4f}")
         print(f"   Mean longitude: {self.df['longitude'].mean():.4f}")
         
-        # Sample IDs (FIXED - handles both 'sample_id' and 'sampleid')
+        # Sample IDs (handles both 'sample_id' and 'sampleid')
         print(f"\n🔢 SAMPLE IDs:")
-        
-        # Detect column name (flexible for both formats)
         id_column = 'sample_id' if 'sample_id' in self.df.columns else 'sampleid'
         
         print(f"   Min: {self.df[id_column].min()}")
@@ -61,5 +59,5 @@ class DataExplorer:
 
 # Run exploration
 if __name__ == '__main__':
-    explorer = DataExplorer('data/raw/EI_train_data.xlsx')
+    explorer = DataExplorer('data/raw/EI_train_data.csv')
     explorer.explore()

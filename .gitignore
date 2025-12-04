@@ -96,9 +96,5 @@ venv.bak/
 # --- Project-specific ignores ---
 
 # Large or raw data (keep only CSV you actually need)
-data/raw/EI_train_data.xlsx
-data/processed/train_images/
-data/processed/dataset/images/
-
-
-solar_yolo_dataset.zip
+# Data (large files)
+dataset.zip
