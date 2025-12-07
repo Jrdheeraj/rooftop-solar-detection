@@ -55,7 +55,10 @@ rooftop-solar-detection/
 │   └── solar_model_best.pt             # YOLOv8n weights (trained in Colab, ~30 epochs)
 │
 ├── outputs/
-│   ├── solar_rooftops_google.json      # Intermediate: batch inference results
+│   ├── logs/
+│       ├──results.csv
+│       └──results.png
+results
 │   ├── predictions.json                # Final output: standardized predictions (type-cast)
 │   ├── predictions.csv                 # CSV export of predictions
 │   ├── predictions_final.json          # Final submission format
@@ -89,7 +92,7 @@ rooftop-solar-detection/
 │
 ├── tests/                              # (Optional) Unit tests
 │
-├── .env.example                        # Environment variables template (API keys, paths)
+├── venv/                              # virtual environment 
 ├── .gitignore
 ├── requirements.txt                    # Python dependencies
 ├── Dockerfile                          # Container for batch inference
