@@ -2,12 +2,12 @@ train: ../train/images
 val: ../valid/images
 test: ../test/images
 
-nc: 4
-names: ['0', '1', '2', '3']
+nc: 1
+names: ['solar-panel']
 
 roboflow:
-  workspace: roof-segmentation-bvyfb
-  project: yolodetectiondataset
+  workspace: geoproject
+  project: geo-solar-tooai
   version: 1
   license: CC BY 4.0
-  url: https://universe.roboflow.com/roof-segmentation-bvyfb/yolodetectiondataset/dataset/1
+  url: https://universe.roboflow.com/geoproject/geo-solar-tooai/dataset/1
