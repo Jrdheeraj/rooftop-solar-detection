@@ -14,7 +14,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libxext6 \
     libgl1 \
     && rm -rf /var/lib/apt/lists/*
-
+# Install CPU-only PyTorch and torchvision
+RUN pip install --no-cache-dir \
+    torch==2.1.0 torchvision==0.16.0 \
+    --index-url https://download.pytorch.org/whl/cpu
 # Python dependencies
 COPY requirements.txt ./requirements.txt
 RUN pip install --no-cache-dir -r requirements.txt
@@ -29,4 +32,4 @@ ENV PYTHONPATH=/app
 RUN mkdir -p outputs/overlays outputs/logs
 
 # Single entrypoint: runs full batch pipeline
-CMD ["/bin/bash", "-c", "python -m src.batch_pipeline"]
+CMD ["python", "-m", "src.batch_inference"]

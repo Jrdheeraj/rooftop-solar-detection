@@ -1,4 +1,4 @@
-# Model Card: Rooftop Solar Panel Detector (YOLOv8)
+# Model-Card: Rooftop Solar Panel Detector (YOLOv8)
 
 ## 🎓 Quick Access
 
