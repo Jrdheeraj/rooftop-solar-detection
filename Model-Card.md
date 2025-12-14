@@ -1,5 +1,31 @@
 # Model-Card: Rooftop Solar Panel Detector (YOLOv8)
 
+## 🐳 Docker Hub Repository
+
+**Docker Image**: `dheerajjk/rooftop-solar-cpu:latest`
+
+- **Repository (Docker Hub URL)**: https://hub.docker.com/r/dheerajjk/rooftop-solar-cpu
+- **Image name**: `dheerajjk/rooftop-solar-cpu`
+- **Tag**: `latest`
+- **Full image reference**: `dheerajjk/rooftop-solar-cpu:latest`
+- **Pull command**: 
+  ```bash
+  docker pull dheerajjk/rooftop-solar-cpu:latest
+  ```
+
+### Docker Deployment
+
+**Run inference using Docker**:
+```bash
+docker run -v $(pwd)/data:/app/data \
+           -v $(pwd)/models:/app/models \
+           -v $(pwd)/outputs:/app/outputs \
+           dheerajjk/rooftop-solar-cpu:latest \
+           python src/batch_inference.py
+```
+
+---
+
 ## 🎓 Quick Access
 
 ### **⭐ [TRAIN IN GOOGLE COLAB (CLICK HERE)](https://colab.research.google.com/drive/1Cl9KowI1deMolhE3wjfg165TRbDsuX4-?usp=sharing)**
@@ -23,6 +49,8 @@
 - **Input Size**: 640×640 px (3-channel RGB)
 - **Training Environment**: Google Colab with GPU (A100/T4)
 - **Inference**: Batch processing via Python multiprocessing with multi-panel detection
+- **Containerization**: Docker (CPU/GPU support)
+- **Docker Hub**: https://hub.docker.com/r/dheerajjk/rooftop-solar-cpu
 - **Training Notebook**: [https://colab.research.google.com/drive/1Cl9KowI1deMolhE3wjfg165TRbDsuX4-?usp=sharing](https://colab.research.google.com/drive/1Cl9KowI1deMolhE3wjfg165TRbDsuX4-?usp=sharing)
 
 ### Training Configuration
@@ -67,6 +95,7 @@ Detect and measure solar panels on residential and commercial rooftops from over
 - Automated rooftop surveying.
 - Regional solar adoption studies (500–5,000+ samples).
 - Multi-panel rooftop analysis.
+- Containerized deployment (Docker).
 
 ### Out-of-Scope Uses
 
@@ -138,11 +167,12 @@ For each tile (sample_id):
 5. **Partial panels**: Fully supported; area calculated proportionally.
 6. **Parallel batch processing**: Uses multiprocessing for 3–5x speedup on multi-core systems.
 7. **Visual highlighting**: Largest panel highlighted in lime green for easy identification.
+8. **Containerization**: Docker image enables reproducible, isolated inference environments.
 
 ### Batch Processing Pipeline
 
 ```python
-# Parallel inference with multiprocessing
+# Parallel inference with multiprocessing (Docker or local)
 workers = cpu_count() - 1  # Auto-detect
 
 with Pool(processes=workers) as pool:
@@ -225,26 +255,29 @@ Each overlay image includes:
 - Training in Google Colab; GPU energy minimal (one-time, ~2 kWh).
 - Inference is lightweight and distributed; modest compute footprint.
 - Parallel batch processing improves efficiency over serial processing.
+- Docker containerization reduces infrastructure redundancy.
 - Consider carbon footprint of cloud infrastructure for large-scale deployments.
 
 ### Transparency
 
 - Model is open-source; weights, architecture, and training data publicly available.
 - Model Card documents intended use, limitations, and known biases.
+- Docker image ensures reproducibility across environments.
 - Users encouraged to report findings transparently.
 
 ---
 
 ## 7. Model Versions & Updates
 
-| Version | Date | Changes | Status | Colab |
-|---------|------|---------|--------|-------|
-| 2.2 | 2025-12-07 | Added multi-panel detection, lime green highlighting, merged batch_inference.py | ✅ Current | [Link](https://colab.research.google.com/drive/1Cl9KowI1deMolhE3wjfg165TRbDsuX4-?usp=sharing) |
-| 2.1 | 2025-12-07 | Added prominent Colab links | ✅ | [Link](https://colab.research.google.com/drive/1Cl9KowI1deMolhE3wjfg165TRbDsuX4-?usp=sharing) |
-| 2.0 | 2025-12-07 | Added batch_pipeline.py, multiprocessing, overlay generation, CSV export | ✅ | [Link](https://colab.research.google.com/drive/1Cl9KowI1deMolhE3wjfg165TRbDsuX4-?usp=sharing) |
-| 1.0 | 2025-12-05 | Initial YOLOv8n model | Deprecated | N/A |
-| — | Future | Larger dataset (1000+ images) | Planned | TBD |
-| — | Future | YOLOv8s / YOLOv8m variants | Planned | TBD |
+| Version | Date | Changes | Status | Docker | Colab |
+|---------|------|---------|--------|--------|-------|
+| 2.3 | 2025-12-14 | Added Docker Hub integration | ✅ Current | [Hub](https://hub.docker.com/r/dheerajjk/rooftop-solar-cpu) | [Link](https://colab.research.google.com/drive/1Cl9KowI1deMolhE3wjfg165TRbDsuX4-?usp=sharing) |
+| 2.2 | 2025-12-07 | Added multi-panel detection, lime green highlighting, merged batch_inference.py | ✅ | [Hub](https://hub.docker.com/r/dheerajjk/rooftop-solar-cpu) | [Link](https://colab.research.google.com/drive/1Cl9KowI1deMolhE3wjfg165TRbDsuX4-?usp=sharing) |
+| 2.1 | 2025-12-07 | Added prominent Colab links | ✅ | N/A | [Link](https://colab.research.google.com/drive/1Cl9KowI1deMolhE3wjfg165TRbDsuX4-?usp=sharing) |
+| 2.0 | 2025-12-07 | Added batch_pipeline.py, multiprocessing, overlay generation, CSV export | ✅ | N/A | [Link](https://colab.research.google.com/drive/1Cl9KowI1deMolhE3wjfg165TRbDsuX4-?usp=sharing) |
+| 1.0 | 2025-12-05 | Initial YOLOv8n model | Deprecated | N/A | N/A |
+| — | Future | Larger dataset (1000+ images) | Planned | TBD | TBD |
+| — | Future | YOLOv8s / YOLOv8m variants | Planned | TBD | TBD |
 
 ---
 
@@ -259,6 +292,22 @@ Each overlay image includes:
 - Auto-downloads model weights after training
 
 ### Step 2: Deploy (Batch Mode - RECOMMENDED)
+
+#### Option A: Using Docker (Easiest)
+
+```bash
+# Pull the pre-built image
+docker pull dheerajjk/rooftop-solar-cpu:latest
+
+# Run inference
+docker run -v $(pwd)/data:/app/data \
+           -v $(pwd)/models:/app/models \
+           -v $(pwd)/outputs:/app/outputs \
+           dheerajjk/rooftop-solar-cpu:latest \
+           python src/batch_inference.py
+```
+
+#### Option B: Local Installation
 
 1. Download `best.pt` from Colab training.
 2. Place in `models/solar_model_best.pt`.
@@ -293,15 +342,10 @@ for result in results:
         print(f"  Confidence: {box.conf[0]:.2f}")
 ```
 
-### Docker / Containerized Inference
+### Docker Compose (Multi-service)
 
 ```bash
-docker build -t rooftop-solar .
-docker run -v $(pwd)/data:/app/data \
-           -v $(pwd)/models:/app/models \
-           -v $(pwd)/outputs:/app/outputs \
-           rooftop-solar \
-           python src/batch_inference.py
+docker-compose up --build
 ```
 
 ---
@@ -316,6 +360,7 @@ docker run -v $(pwd)/data:/app/data \
 - **Scale testing**: Validate on 100, 1000, 5000+ sample batches.
 - **Edge cases**: Verify behavior on partially visible, occluded, or heavily shadowed panels.
 - **Multi-panel scenarios**: Test on rooftops with multiple panel installations.
+- **Container integrity**: Verify Docker image builds and runs correctly across platforms.
 
 ### Monitoring in Production
 
@@ -325,6 +370,7 @@ docker run -v $(pwd)/data:/app/data \
 - Periodically sample predictions + overlays for manual review.
 - Track false positive / false negative rates on test set.
 - Monitor multi-panel detection accuracy (count vs ground truth).
+- Verify Docker container health and resource usage.
 
 ### Performance Metrics to Log
 
@@ -337,7 +383,9 @@ docker run -v $(pwd)/data:/app/data \
   "solar_detected_rate": 0.31,
   "avg_panels_per_detection": 1.8,
   "multi_panel_rate": 0.25,
-  "errors": 0
+  "errors": 0,
+  "docker_memory_mb": 2048,
+  "container_runtime_seconds": 2700
 }
 ```
 
@@ -360,14 +408,17 @@ docker run -v $(pwd)/data:/app/data \
 2. Expand dataset using open sources (Roboflow, research datasets).
 3. Run training with new dataset.
 4. Validate on holdout set.
-5. Compare metrics to v2.2 baseline.
-6. Replace `models/solar_model_best.pt` and tag version (e.g., v2.3).
+5. Compare metrics to v2.3 baseline.
+6. Replace `models/solar_model_best.pt` and tag version (e.g., v2.4).
+7. Rebuild Docker image: `docker build -t dheerajjk/rooftop-solar-cpu:latest .`
+8. Push to Docker Hub: `docker push dheerajjk/rooftop-solar-cpu:latest`
 
 ### Version Control
 
-- Tag releases: `git tag -a v2.2 -m "Multi-panel detection"`
+- Tag releases: `git tag -a v2.3 -m "Docker integration"`
 - Document performance metrics for each version.
 - Maintain backward compatibility for inference API.
+- Tag Docker images with version: `dheerajjk/rooftop-solar-cpu:v2.3`
 
 ---
 
@@ -462,7 +513,40 @@ Each overlay JPG shows:
 
 ---
 
-## 13. FAQ
+## 13. Docker Hub Integration
+
+### Docker Repository
+
+**Docker Hub**: https://hub.docker.com/r/dheerajjk/rooftop-solar-cpu
+
+- **Image**: `dheerajjk/rooftop-solar-cpu:latest`
+- **Latest Tag**: Points to the most recent stable version
+- **Version Tags**: Available as `v2.3`, `v2.2`, etc. for specific releases
+
+### Quick Pull & Run
+
+```bash
+# Pull latest image
+docker pull dheerajjk/rooftop-solar-cpu:latest
+
+# Run with data volumes
+docker run -v $(pwd)/data:/app/data \
+           -v $(pwd)/models:/app/models \
+           -v $(pwd)/outputs:/app/outputs \
+           dheerajjk/rooftop-solar-cpu:latest \
+           python src/batch_inference.py
+```
+
+### Container Environment
+
+- **Base OS**: Python 3.10+ with CUDA support (optional)
+- **Dependencies**: All pre-installed (ultralytics, OpenCV, PyTorch, etc.)
+- **GPU Support**: Automatically detected; falls back to CPU if unavailable
+- **Entry Point**: Python script execution ready
+
+---
+
+## 14. FAQ
 
 **Q: Why use YOLOv8n instead of larger models?**  
 A: YOLOv8n balances speed and accuracy. Inference ~20–30 ms/image allows parallel batch processing. Larger models (YOLOv8m, YOLOv8l) are slower but slightly more accurate; available for future versions.
@@ -483,34 +567,41 @@ A: ~0.5–2 sec/sample on GPU with 7 workers. 3,000 samples = ~25–50 minutes. 
 A: Model is trained on open data and is research-grade. Validate thoroughly on your specific use case before commercial deployment.
 
 **Q: Do I need to run Colab training locally?**  
-A: No! Colab runs in your browser with GPU. Download trained weights and use locally.
+A: No! Colab runs in your browser with GPU. Download trained weights and use locally or in Docker.
 
 **Q: How does multi-panel visualization work?**  
 A: All detected panels are drawn on the overlay. The largest panel (by area inside buffer) is highlighted in **lime green** with a thicker line (3px). Other panels are shown in **cyan** (2px). Each panel has a label showing Panel ID, Confidence, and Area.
 
+**Q: What are the Docker image specifications?**  
+A: Image runs on CPU or GPU (auto-detected). Base image includes Python 3.10+, CUDA 12.x (optional), PyTorch 2.x, and all ML dependencies pre-installed.
+
 ---
 
-## 14. Contact & Attribution
+## 15. Contact & Attribution
 
 - **Model Author**: AI/ML Research Team
 - **Training Framework**: Ultralytics YOLOv8
 - **Dataset Source**: Roboflow Universe
 - **Batch Pipeline**: Custom Python multiprocessing implementation with multi-panel detection
+- **Docker Hub**: dheerajjk/rooftop-solar-cpu
 - **Training Platform**: Google Colab
 - **For questions**: Open GitHub issues or contact maintainer
 - **Citation**: Please cite this Model Card and Roboflow dataset if using in research
 
 ---
 
-## 15. License & Disclaimer
+## 16. License & Disclaimer
 
 - Model and code released under [LICENSE](LICENSE)
 - No warranty; use at your own risk
 - Validate predictions on your data before production use
 - Respect Google Static Maps ToS and local privacy regulations
+- Docker images provided as-is; test in your environment before production use
 
 ---
 
-**Last Updated**: 2025-12-07  
-**Version**: 2.2  
+**Last Updated**: 2025-12-14  
+**Version**: 2.3  
+**Docker Hub**: https://hub.docker.com/r/dheerajjk/rooftop-solar-cpu  
+**Docker Image**: `dheerajjk/rooftop-solar-cpu:latest`  
 **Colab Notebook**: [https://colab.research.google.com/drive/1Cl9KowI1deMolhE3wjfg165TRbDsuX4-?usp=sharing](https://colab.research.google.com/drive/1Cl9KowI1deMolhE3wjfg165TRbDsuX4-?usp=sharing)

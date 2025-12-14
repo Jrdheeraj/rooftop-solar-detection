@@ -10,9 +10,7 @@ import cv2
 import numpy as np
 from ultralytics import YOLO
 
-# ════════════════════════════════════════════════════════════════════════════════
-# CONFIGURATION & PATHS
-# ════════════════════════════════════════════════════════════════════════════════
+
 
 MODEL_PATH = Path("models/solar_model_best.pt")
 GOOGLE_IMG_DIR = Path("data/processed/google_images_all")
@@ -29,9 +27,6 @@ BUFFER_2400 = 2400  # Larger residential / commercial fallback
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
 
-# ════════════════════════════════════════════════════════════════════════════════
-# HELPER FUNCTIONS
-# ════════════════════════════════════════════════════════════════════════════════
 
 def load_image_for_sample(sample_id: int) -> np.ndarray:
     """Load Google Static Maps tile for a given sample_id."""
@@ -41,9 +36,6 @@ def load_image_for_sample(sample_id: int) -> np.ndarray:
         raise FileNotFoundError(f"Image not found for sample_id={sample_id}: {img_path}")
     return img
 
-# ════════════════════════════════════════════════════════════════════════════════
-# AREA CALCULATIONS
-# ════════════════════════════════════════════════════════════════════════════════
 
 class AreaCalculator:
     """BBox → area in m² at given zoom (zoom=19 default for Google Static Maps)."""
@@ -95,9 +87,6 @@ class AreaCalculator:
         panel_area = w1 * h1
         return float(inter_area / panel_area) if panel_area > 0 else 0.0
 
-# ════════════════════════════════════════════════════════════════════════════════
-# QUALITY CONTROL
-# ════════════════════════════════════════════════════════════════════════════════
 
 class QCChecker:
     """Quality control based on sharpness, lighting, and confidence."""
@@ -128,9 +117,6 @@ class QCChecker:
 
         return ("NOT_VERIFIABLE", reasons) if reasons else ("VERIFIABLE", ["Clear evidence"])
 
-# ════════════════════════════════════════════════════════════════════════════════
-# MAIN INFERENCE ENGINE
-# ════════════════════════════════════════════════════════════════════════════════
 
 class SolarPanelInference:
     """Production-ready solar panel detection for EcoInnovators Ideathon.
@@ -277,9 +263,6 @@ class SolarPanelInference:
         # No solar found in either buffer → return 1200 by default
         return rec_1200
 
-# ════════════════════════════════════════════════════════════════════════════════
-# TEST
-# ════════════════════════════════════════════════════════════════════════════════
 
 if __name__ == "__main__":
     try:

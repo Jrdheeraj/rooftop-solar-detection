@@ -2,6 +2,21 @@
 
 **End-to-end computer vision pipeline** for detecting and measuring solar panels on rooftops from Google Static Maps satellite imagery using YOLOv8, parallel batch processing, and geospatial buffer logic with **multi-panel detection and visualization**.
 
+## 🐳 Docker Hub Repository
+
+**Docker Image**: `dheerajjk/rooftop-solar-cpu:latest`
+
+- **Repository (Docker Hub URL)**: https://hub.docker.com/r/dheerajjk/rooftop-solar-cpu
+- **Image name**: `dheerajjk/rooftop-solar-cpu`
+- **Tag**: `latest`
+- **Full image reference**: `dheerajjk/rooftop-solar-cpu:latest`
+- **Pull command**: 
+  ```bash
+  docker pull dheerajjk/rooftop-solar-cpu:latest
+  ```
+
+---
+
 ## 🎓 Quick Links
 
 ### **🔥 TRAIN MODEL IN COLAB (RECOMMENDED)**
@@ -25,6 +40,7 @@ This project:
 - **Calculates** precise panel area intersection with buffers, handling partial overlaps and multiple detections
 - **Generates** overlay visualizations with multi-panel detection, audit-friendly metadata for each sample
 - **Exports** standardized JSON with solar panel predictions and quality assurance metadata
+- **Containerized** with Docker for easy deployment and reproducibility
 
 > **Data Compliance**: The model trains on open, publicly available imagery only (not Google Static Maps). Inference runs on Google tiles, which is permitted under their terms for non-commercial mapping use.
 
@@ -58,7 +74,6 @@ rooftop-solar-detection/
 │   ├── logs/
 │       ├──results.csv
 │       └──results.png
-results
 │   ├── predictions.json                # Final output: standardized predictions (type-cast)
 │   ├── predictions.csv                 # CSV export of predictions
 │   ├── predictions_final.json          # Final submission format
@@ -67,21 +82,9 @@ results
 │
 ├── src/
 │   ├── __init__.py                     # Python package marker
-│   │
 │   ├── inference.py                    # Core inference engine
-│   │   ├── AreaCalculator              # Bounding box ↔ area conversions (m², sq ft)
-│   │   ├── QCChecker                   # Quality assurance (sharpness, darkness, conf)
-│   │   └── SolarPanelInference         # Main: 1200→2400 buffer logic, panel selection
-│   │
 │   ├── batch_inference.py              # ⭐ Unified batch processor with multi-panel detection
-│   │   ├── load_input_csv()            # CSV loading
-│   │   ├── create_overlay_image()      # Multi-panel visualization (lime green for largest)
-│   │   ├── build_final_predictions_json() # Final JSON builder
-│   │   ├── export_rooftop_json()       # JSON exporter
-│   │   └── run_batch()                 # Main orchestrator
-│   │
 │   ├── download_google_staticmaps.py   # Google Static Maps API downloader
-│   │
 │   ├── api.py                          # (Optional) REST API / demo wrapper
 │   ├── model_trainer.py                # (Reference) Local YOLOv8 training script
 │   ├── yolo_dataset_creator.py         # YOLO-format dataset utilities
@@ -89,10 +92,8 @@ results
 │   └── data_explorer.py                # (Optional) Exploratory data analysis
 │
 ├── notebooks/                          # (Optional) Jupyter notebooks for exploration
-│
 ├── tests/                              # (Optional) Unit tests
-│
-├── venv/                              # virtual environment 
+├── venv/                               # virtual environment 
 ├── .gitignore
 ├── requirements.txt                    # Python dependencies
 ├── Dockerfile                          # Container for batch inference
@@ -100,6 +101,43 @@ results
 ├── LICENSE
 ├── Model-Card.md                       # Model documentation
 └── README.md                           # This file
+```
+
+---
+
+## 🐳 Docker Deployment
+
+### Quick Start with Docker
+
+**Pull the image**:
+```bash
+docker pull dheerajjk/rooftop-solar-cpu:latest
+```
+
+**Run inference inside container**:
+```bash
+docker run -v $(pwd)/data:/app/data \
+           -v $(pwd)/models:/app/models \
+           -v $(pwd)/outputs:/app/outputs \
+           dheerajjk/rooftop-solar-cpu:latest \
+           python src/batch_inference.py
+```
+
+### Build Locally (Optional)
+
+```bash
+docker build -t rooftop-solar-detection .
+docker run -v $(pwd)/data:/app/data \
+           -v $(pwd)/models:/app/models \
+           -v $(pwd)/outputs:/app/outputs \
+           rooftop-solar-detection \
+           python src/batch_inference.py
+```
+
+### Using Docker Compose
+
+```bash
+docker-compose up --build
 ```
 
 ---
@@ -193,7 +231,6 @@ python src/inference.py
 ```
 
 Expected output (for sample_id=1234):
-
 ```json
 {
   "sample_id": 1234,
@@ -316,32 +353,6 @@ outputs/
     ├── 1001_overlay.jpg               # Per-sample visualization (multi-panel)
     ├── 1002_overlay.jpg
     └── ...
-```
-
-### Workflow
-
-```
-1. Load CSV (EI_train_data.csv)
-   ↓
-2. Initialize worker pool (auto or custom count)
-   ↓
-3. For each sample in parallel:
-   ├─ Initialize YOLO model per worker (thread-safe)
-   ├─ Run inference → SolarPanelInference.predict()
-   ├─ Detect ALL panels in image
-   ├─ Calculate area for each panel
-   ├─ Identify largest panel (best_panel_id)
-   ├─ Generate overlay visualization (lime green for largest, cyan for others)
-   └─ Return prediction record with panels_in_buffer
-   ↓
-4. Aggregate results
-   ↓
-5. Save outputs:
-   ├─ solar_rooftops_google.json (intermediate)
-   ├─ predictions.json (final, type-cast)
-   ├─ predictions.csv
-   ├─ predictions_final.json (submission format)
-   └─ overlays/ (artifact visualizations with multi-panel detection)
 ```
 
 ### Performance
@@ -521,27 +532,6 @@ pip install -r requirements.txt
 
 ---
 
-## Docker (Optional)
-
-Build and run inference inside a container:
-
-```bash
-docker build -t rooftop-solar-detection .
-
-docker run -v $(pwd)/data:/app/data \
-           -v $(pwd)/models:/app/models \
-           -v $(pwd)/outputs:/app/outputs \
-           rooftop-solar-detection \
-           python src/batch_inference.py
-```
-
-Or with docker-compose:
-```bash
-docker-compose up --build
-```
-
----
-
 ## Troubleshooting
 
 ### Model not found
@@ -576,6 +566,7 @@ MemoryError: Process pool exceeded limits
 ## References
 
 - **🎓 [Training Notebook (Google Colab)](https://colab.research.google.com/drive/1Cl9KowI1deMolhE3wjfg165TRbDsuX4-?usp=sharing)** ⭐
+- **🐳 [Docker Hub Repository](https://hub.docker.com/r/dheerajjk/rooftop-solar-cpu)** 🐳
 - **YOLOv8 Docs**: https://docs.ultralytics.com/
 - **Roboflow Universe**: https://universe.roboflow.com/
 - **Web Mercator Projection**: https://en.wikipedia.org/wiki/Web_Mercator_projection
@@ -597,8 +588,16 @@ For issues or questions, open a GitHub issue or reach out to the maintainer.
 ## Version History
 
 | Version | Date | Changes |
-|---------|------|---------|
+|---------|------|---------| 
+| 2.3 | 2025-12-14 | Added Docker Hub integration and deployment instructions |
 | 2.2 | 2025-12-07 | Added multi-panel detection, lime green highlighting for largest panel, merged batch_inference.py |
 | 2.1 | 2025-12-07 | Added prominent Colab notebook links |
 | 2.0 | 2025-12-07 | Added batch_pipeline.py with multiprocessing, overlay generation, CSV export |
 | 1.0 | 2025-12-05 | Initial single-sample inference |
+
+---
+
+**Last Updated**: 2025-12-14  
+**Docker Image**: `dheerajjk/rooftop-solar-cpu:latest`  
+**Docker Hub**: https://hub.docker.com/r/dheerajjk/rooftop-solar-cpu  
+**Training Colab**: https://colab.research.google.com/drive/1Cl9KowI1deMolhE3wjfg165TRbDsuX4-?usp=sharing
