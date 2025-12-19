@@ -139,7 +139,7 @@ class SolarPanelInference:
         self.zoom = zoom
         self.conf_threshold = conf_threshold
         logger.info(
-            f"✅ Model loaded: {model_path} | Config: zoom={zoom}, conf_threshold={conf_threshold}"
+            f" Model loaded: {model_path} | Config: zoom={zoom}, conf_threshold={conf_threshold}"
         )
 
     def _buffer_bbox_normalized(
