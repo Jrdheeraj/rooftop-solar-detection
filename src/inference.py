@@ -10,8 +10,6 @@ import cv2
 import numpy as np
 from ultralytics import YOLO
 
-
-
 MODEL_PATH = Path("models/solar_model_best.pt")
 GOOGLE_IMG_DIR = Path("data/processed/google_images_all")
 
@@ -26,7 +24,6 @@ BUFFER_2400 = 2400  # Larger residential / commercial fallback
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
-
 
 def load_image_for_sample(sample_id: int) -> np.ndarray:
     """Load Google Static Maps tile for a given sample_id."""
