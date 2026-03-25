@@ -10,7 +10,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from matplotlib.patches import Rectangle
 
-from src.inference import SolarPanelInference, load_image_for_sample
+from inference import SolarPanelInference, load_image_for_sample
 
 
 # Paths

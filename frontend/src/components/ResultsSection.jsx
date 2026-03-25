@@ -9,21 +9,29 @@ import {
 const ResultsSection = ({ data, onReset }) => {
   const [showJson, setShowJson] = useState(false);
 
-  // Fallback dummy data if none provided
-  const result = data || {
-    overlay_path: "https://images.unsplash.com/photo-1509395176047-4a66953fd231?auto=format&fit=crop&w=1600&q=80",
-    has_solar: true,
-    confidence: 0.947,
-    panels_in_buffer: 12,
-    total_area: 42.8,
-    lat: 17.4482,
-    lng: 78.3915,
-    panels: [
-      { id: 1, confidence: 0.98, area: 2.1 },
-      { id: 2, confidence: 0.97, area: 2.2 },
-      { id: 3, confidence: 0.94, area: 2.0 },
-      { id: 4, confidence: 0.99, area: 2.3 },
-    ]
+  // Transform the new API response format to match our UI needs
+  const result = {
+    overlay_path: data?.overlay_path || "https://images.unsplash.com/photo-1509395176047-4a66953fd231?auto=format&fit=crop&w=1600&q=80",
+    has_solar: data?.has_solar || false,
+    confidence: data?.confidence || 0,
+    panels_in_buffer: data?.panels_in_buffer?.length || 0,
+    total_area: data?.pv_area_sqm_est || 0,
+    lat: data?.latitude || data?.lat || null,
+    lng: data?.longitude || data?.lng || null,
+    panels: data?.panels_in_buffer?.map((panel, idx) => ({
+      id: panel.panel_id || idx + 1,
+      confidence: panel.conf || 0,
+      area: panel.inside_area_sqm || panel.full_area_sqm || 0,
+      full_area_sqm: panel.full_area_sqm || 0,
+      inside_area_sqm: panel.inside_area_sqm || 0,
+      overlap_ratio: panel.overlap_ratio || 0,
+      bbox_center: panel.bbox_center || []
+    })) || [],
+    qc_status: data?.qc_status || 'NOT_VERIFIABLE',
+    buffer_radius_sqft: data?.buffer_radius_sqft || 1200,
+    best_panel_id: data?.best_panel_id || -1,
+    bbox_or_mask: data?.bbox_or_mask || '',
+    image_metadata: data?.image_metadata || {}
   };
 
   return (
@@ -69,13 +77,24 @@ const ResultsSection = ({ data, onReset }) => {
                   <span className="bg-black/40 backdrop-blur-md text-white px-4 py-2 rounded-full text-xs font-bold flex items-center gap-2 border border-white/20">
                     <FiSearch className="text-green-400" /> AI Detection Overlay
                   </span>
-                  <span className="bg-green-500 text-white px-4 py-2 rounded-full text-xs font-bold shadow-lg">
+                  <span className={`${result.has_solar ? 'bg-green-500' : 'bg-red-500'} text-white px-4 py-2 rounded-full text-xs font-bold shadow-lg`}>
                     {result.panels_in_buffer} Panels Found
                   </span>
+                  {result.qc_status && (
+                    <span className={`px-4 py-2 rounded-full text-xs font-bold shadow-lg ${
+                      result.qc_status === 'VERIFIABLE' 
+                        ? 'bg-blue-500 text-white' 
+                        : 'bg-orange-500 text-white'
+                    }`}>
+                      {result.qc_status}
+                    </span>
+                  )}
                 </div>
                 <div className="absolute bottom-6 right-6">
                    <div className="bg-white/90 backdrop-blur-md p-4 rounded-3xl shadow-xl flex items-center gap-4 border border-white">
-                      <div className="w-10 h-10 bg-green-100 rounded-2xl flex items-center justify-center text-green-600">
+                      <div className={`w-10 h-10 rounded-2xl flex items-center justify-center ${
+                        result.has_solar ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'
+                      }`}>
                         <FiActivity className="text-xl" />
                       </div>
                       <div>
@@ -86,7 +105,7 @@ const ResultsSection = ({ data, onReset }) => {
                 </div>
               </div>
               <p className="mt-6 text-sm text-gray-400 font-medium text-center">
-                Visual representation of bounding boxes and segmented panel areas.
+                {result.image_metadata?.source || 'AI'} Detection Analysis • {result.image_metadata?.zoom || 19}x Zoom • {result.image_metadata?.capture_date || 'Current Date'}
               </p>
             </div>
           </div>
@@ -108,7 +127,7 @@ const ResultsSection = ({ data, onReset }) => {
                 </div>
                 <div>
                   <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Area Estimate</p>
-                  <p className="text-xl font-bold text-gray-900">{result.total_area} sq.m</p>
+                  <p className="text-xl font-bold text-gray-900">{result.total_area.toFixed(2)} sq.m</p>
                 </div>
                 <div>
                    <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Latitude</p>
@@ -117,6 +136,20 @@ const ResultsSection = ({ data, onReset }) => {
                 <div>
                    <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Longitude</p>
                    <p className="text-base font-bold text-gray-900">{result.lng || 'N/A'}</p>
+                </div>
+              </div>
+              <div className="mt-6 pt-6 border-t border-gray-200">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Buffer Size</p>
+                    <p className="text-sm font-bold text-gray-900">{result.buffer_radius_sqft} sq.ft</p>
+                  </div>
+                  <div>
+                    <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Best Panel ID</p>
+                    <p className="text-sm font-bold text-gray-900">
+                      {result.best_panel_id >= 0 ? `#${result.best_panel_id}` : 'None'}
+                    </p>
+                  </div>
                 </div>
               </div>
             </div>
@@ -128,33 +161,59 @@ const ResultsSection = ({ data, onReset }) => {
                   <FiGrid /> Panel Distribution
                 </div>
                 <span className="text-[10px] font-bold bg-gray-100 px-2 py-1 rounded text-gray-500 uppercase">
-                  Sort: Confidence
+                  {result.panels.length} Panels
                 </span>
               </div>
               
               <div className="space-y-3 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
-                {result.panels?.map((panel, idx) => (
-                  <div key={idx} className="group flex items-center justify-between p-4 rounded-2xl bg-gray-50/50 border border-transparent hover:border-green-200 hover:bg-green-50/20 transition-all">
-                    <div className="flex items-center gap-4">
-                      <div className="w-8 h-8 rounded-lg bg-white shadow-sm flex items-center justify-center text-[10px] font-black text-gray-400">
-                        {idx + 1}
+                {result.panels.length > 0 ? (
+                  result.panels.map((panel, idx) => (
+                    <div key={idx} className={`group flex items-center justify-between p-4 rounded-2xl bg-gray-50/50 border border-transparent hover:border-green-200 hover:bg-green-50/20 transition-all ${
+                      panel.id === result.best_panel_id ? 'ring-2 ring-green-400 bg-green-50/30' : ''
+                    }`}>
+                      <div className="flex items-center gap-4">
+                        <div className={`w-8 h-8 rounded-lg shadow-sm flex items-center justify-center text-[10px] font-black ${
+                          panel.id === result.best_panel_id 
+                            ? 'bg-green-500 text-white' 
+                            : 'bg-white text-gray-400'
+                        }`}>
+                          {panel.id + 1}
+                        </div>
+                        <div>
+                          <p className="text-xs font-bold text-gray-800">
+                            Panel ID #{panel.id + 1}
+                            {panel.id === result.best_panel_id && (
+                              <span className="ml-2 text-[8px] bg-green-500 text-white px-1.5 py-0.5 rounded">BEST</span>
+                            )}
+                          </p>
+                          <p className="text-[10px] font-medium text-gray-400 uppercase">
+                            {panel.inside_area_sqm.toFixed(1)}m² Inside • {panel.full_area_sqm.toFixed(1)}m² Full
+                          </p>
+                          {panel.overlap_ratio > 0 && (
+                            <p className="text-[9px] text-blue-600 font-medium">
+                              {Math.round(panel.overlap_ratio * 100)}% Buffer Overlap
+                            </p>
+                          )}
+                        </div>
                       </div>
-                      <div>
-                        <p className="text-xs font-bold text-gray-800">Panel ID #{panel.id}</p>
-                        <p className="text-[10px] font-medium text-gray-400 uppercase">{panel.area}m² Segment</p>
+                      <div className="text-right">
+                        <div className="w-24 h-1.5 bg-gray-200 rounded-full overflow-hidden mb-1">
+                          <div 
+                            className={`h-full ${panel.confidence > 0.7 ? 'bg-green-500' : panel.confidence > 0.4 ? 'bg-yellow-500' : 'bg-red-500'}`}
+                            style={{ width: `${panel.confidence * 100}%` }} 
+                          />
+                        </div>
+                        <p className="text-[10px] font-black text-green-600">{(panel.confidence * 100).toFixed(1)}%</p>
                       </div>
                     </div>
-                    <div className="text-right">
-                      <div className="w-24 h-1.5 bg-gray-200 rounded-full overflow-hidden mb-1">
-                        <div 
-                          className="h-full bg-green-500" 
-                          style={{ width: `${panel.confidence * 100}%` }} 
-                        />
-                      </div>
-                      <p className="text-[10px] font-black text-green-600">{(panel.confidence * 100).toFixed(0)}%</p>
-                    </div>
+                  ))
+                ) : (
+                  <div className="text-center py-8">
+                    <FiAlertCircle className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+                    <p className="text-sm font-medium text-gray-500">No panels detected in this area</p>
+                    <p className="text-xs text-gray-400 mt-1">Try adjusting confidence threshold or buffer size</p>
                   </div>
-                ))}
+                )}
               </div>
             </div>
 
@@ -176,7 +235,7 @@ const ResultsSection = ({ data, onReset }) => {
                     className="overflow-hidden mt-2"
                   >
                     <pre className="p-6 bg-gray-900 text-green-400 rounded-2xl text-[10px] font-mono whitespace-pre-wrap leading-relaxed shadow-inner">
-                      {JSON.stringify(result, null, 2)}
+                      {JSON.stringify(data, null, 2)}
                     </pre>
                   </motion.div>
                 )}

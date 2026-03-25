@@ -20,7 +20,18 @@ const InputSection = ({ onAnalyze }) => {
 
   const handleSubmit = () => {
     if (activeTab === 'upload' && !file) return alert('Please upload an image');
-    if (activeTab === 'coords' && (!coords.lat || !coords.lng)) return alert('Please enter coordinates');
+    if (activeTab === 'coords' && (!coords.lat || !coords.lng)) {
+      return alert('Please enter valid coordinates');
+    }
+    
+    // Validate coordinates
+    if (activeTab === 'coords') {
+      const lat = parseFloat(coords.lat);
+      const lng = parseFloat(coords.lng);
+      if (isNaN(lat) || isNaN(lng) || lat < -90 || lat > 90 || lng < -180 || lng > 180) {
+        return alert('Please enter valid latitude (-90 to 90) and longitude (-180 to 180)');
+      }
+    }
     
     onAnalyze({
       type: activeTab,

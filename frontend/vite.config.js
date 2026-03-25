@@ -7,4 +7,13 @@ export default defineConfig({
   css: {
     postcss: './postcss.config.cjs',
   },
+  server: {
+    proxy: {
+      '/api': {
+        target: 'http://localhost:8002',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api/, '')
+      }
+    }
+  }
 })
