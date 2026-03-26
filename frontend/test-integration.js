@@ -17,7 +17,7 @@ async function testImageUpload() {
     const testFile = new File(['dummy content'], 'test.jpg', { type: 'image/jpeg' });
     
     try {
-        const result = await apiService.predictImage(testFile, 0.5);
+        const result = await apiService.analyzeImage(testFile, 0.5);
         console.log('Image prediction result:', result);
     } catch (error) {
         console.error('Image prediction failed:', error);
@@ -27,7 +27,7 @@ async function testImageUpload() {
 // Test coordinates endpoint
 async function testCoordinates() {
     try {
-        const result = await apiService.predictByCoords(17.4483, 78.3915, 0.5);
+        const result = await apiService.analyzeCoordinates(17.4483, 78.3915, 0.5);
         console.log('Coordinates prediction result:', result);
     } catch (error) {
         console.error('Coordinates prediction failed:', error);

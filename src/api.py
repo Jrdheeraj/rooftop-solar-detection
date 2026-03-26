@@ -1,28 +1,25 @@
 # src/api.py
 
-from fastapi import FastAPI, File, UploadFile, HTTPException
+from fastapi import FastAPI, File, UploadFile, HTTPException, Form
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse, FileResponse
-from pathlib import Path
 import cv2
 import numpy as np
-from PIL import Image
-import io
 from ultralytics import YOLO
 import uvicorn
-import tempfile
-import os
-from typing import Dict, Any, List
+import time
+from datetime import datetime
 from pydantic import BaseModel
 
 class CoordinateRequest(BaseModel):
     latitude: float
     longitude: float
+    buffer_radius_sqft: int | None = 1200
 
 # Import our custom modules
 from inference import SolarPanelInference
-from download_google_staticmaps import GoogleStaticMapsClient, StaticMapConfig
-from batch_inference import create_overlay_image
+from download_google_staticmaps import GoogleStaticMapsClient
+from batch_inference import render_panel_detections
+from request_utils import build_request_sample_id, validate_coordinates
 
 app = FastAPI(
     title="Solar Panel Detection API",
@@ -49,14 +46,14 @@ app.add_middleware(
 MODEL_PATH = "models/solar_model_best.pt"
 model = YOLO(MODEL_PATH)
 inference_engine = SolarPanelInference()
-print(f"✅ Model loaded: {MODEL_PATH}")
+print(f"Model loaded: {MODEL_PATH}")
 
 # Initialize Google Static Maps client (will raise error if API key not set)
 try:
     maps_client = GoogleStaticMapsClient()
-    print("✅ Google Static Maps client initialized")
+    print("Google Static Maps client initialized")
 except RuntimeError as e:
-    print(f"⚠️  Google Static Maps client not initialized: {e}")
+    print(f"ERROR: Google Static Maps client not initialized: {e}")
     maps_client = None
 
 
@@ -74,6 +71,7 @@ async def root():
         },
         "features": {
             "image_upload": True,
+            "satellite_upload": True,
             "coordinate_analysis": maps_client is not None,
             "google_static_maps": maps_client is not None
         }
@@ -87,7 +85,14 @@ async def health():
 
 
 @app.post("/predict")
-async def predict(file: UploadFile = File(...), confidence: float = 0.5):
+async def predict(
+    file: UploadFile = File(...),
+    confidence: float = 0.5,
+    image_type: str = Form("PHOTO"),
+    latitude: float | None = Form(None),
+    longitude: float | None = Form(None),
+    buffer_radius_sqft: int | None = Form(None),
+):
     """
     Predict solar panels on uploaded image
     
@@ -103,104 +108,78 @@ async def predict(file: UploadFile = File(...), confidence: float = 0.5):
         raise HTTPException(status_code=400, detail="Confidence must be 0-1")
     
     try:
+        t_start = time.time()
         # Read uploaded image
         contents = await file.read()
         image_array = np.frombuffer(contents, np.uint8)
-        image = cv2.imdecode(image_array, cv2.IMREAD_COLOR)
+        image_bgr = cv2.imdecode(image_array, cv2.IMREAD_COLOR)
         
-        if image is None:
+        t_read = time.time()
+        if image_bgr is None:
             raise HTTPException(status_code=400, detail="Invalid image file")
-        
-        # Save to temp location
-        with tempfile.NamedTemporaryFile(suffix='.jpg', delete=False) as temp_file:
-            temp_path = temp_file.name
-            cv2.imwrite(temp_path, image)
-        
-        try:
-            # Run inference using our custom inference engine
-            # Create a mock sample_id and coordinates for uploaded image
-            sample_id = 9999  # Use a special ID for uploaded images
-            lat, lon = 0.0, 0.0  # Default coordinates for uploaded images
             
-            # Temporarily save the image as if it were a Google Static Map
-            google_img_dir = Path("data/processed/google_images_all")
-            google_img_dir.mkdir(parents=True, exist_ok=True)
-            temp_google_path = google_img_dir / f"{sample_id}.jpg"
-            
-            # Copy temp file to Google images directory
-            import shutil
-            shutil.copy2(temp_path, temp_google_path)
-            
-            # Run inference with "UPLOAD" type to use standard panel size heuristic
-            result = inference_engine.predict(sample_id=sample_id, lat=lat, lon=lon, image_type="UPLOAD")
-            panels = result.get("panels_in_buffer", [])
+        requested_image_type = (image_type or "PHOTO").upper()
+        if requested_image_type not in {"PHOTO", "SATELLITE", "UPLOAD"}:
+            raise HTTPException(status_code=400, detail="image_type must be PHOTO or SATELLITE")
 
-            # Load the image for overlay generation
-            img_bgr = cv2.imread(str(temp_google_path))
-            
-            # Create overlay image with bounding boxes
-            overlays_dir = Path("outputs/overlays")
-            overlays_dir.mkdir(parents=True, exist_ok=True)
-            overlay_path = overlays_dir / f"{sample_id}_overlay.jpg"
-            
-            # Generate the overlay with bounding boxes
-            create_overlay_image(img_bgr, result, overlay_path)
-            
-            # Transform result to match expected API format
-            detections = []
-            for panel in panels:
-                bbox = panel["bbox_center"]
-                detections.append({
-                    "x1": bbox[0] - bbox[2]/2,
-                    "y1": bbox[1] - bbox[3]/2,
-                    "x2": bbox[0] + bbox[2]/2,
-                    "y2": bbox[1] + bbox[3]/2,
-                    "confidence": panel["conf"]
-                })
-            
-            # Convert overlay image to base64 for frontend display
-            import base64
-            with open(overlay_path, "rb") as img_file:
-                overlay_base64 = base64.b64encode(img_file.read()).decode('utf-8')
-                overlay_data_url = f"data:image/jpeg;base64,{overlay_base64}"
-            
-            api_result = {
-                "filename": file.filename,
-                "status": "success",
-                "detections": len(detections),
-                "detection_list": detections,
-                "confidence_threshold": confidence,
-                "has_solar": result["has_solar"],
-                "confidence": result["confidence"],
-                "pv_area_sqm_est": result["pv_area_sqm_est"],
-                "estimated_capacity_kw": round(float(result["pv_area_sqm_est"]) * 0.2, 2),
-                "estimated_annual_production_kwh": round(float(result["pv_area_sqm_est"]) * 0.2 * 1460, 2),
-                "panels_in_buffer": result["panels_in_buffer"],
-                "qc_status": result["qc_status"],
-                "buffer_radius_sqft": result["buffer_radius_sqft"],
-                "overlay_image": overlay_data_url,  # Add overlay image as base64
-                "sample_id": sample_id,
-                "latitude": lat,
-                "longitude": lon,
-                "best_panel_id": result["best_panel_id"],
-                "bbox_or_mask": result["bbox_or_mask"],
-                "image_metadata": result["image_metadata"],
-                "financial_insights": result["financial_insights"],
-                "environmental_impact": result["environmental_impact"],
-                "technical_specs": result["technical_specs"]
-            }
-            
-        finally:
-            # Clean up temp files
-            if os.path.exists(temp_path):
-                os.unlink(temp_path)
-            if 'temp_google_path' in locals() and os.path.exists(temp_google_path):
-                os.unlink(temp_google_path)
-            if 'overlay_path' in locals() and os.path.exists(overlay_path):
-                os.unlink(overlay_path)
+        if requested_image_type == "SATELLITE":
+            if latitude is None or longitude is None:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Satellite image uploads require latitude and longitude for accurate scaling",
+                )
+            lat, lon = validate_coordinates(latitude, longitude)
+            model_image_type = "SATELLITE"
+        else:
+            lat = float(latitude) if latitude is not None else 0.0
+            lon = float(longitude) if longitude is not None else 0.0
+            model_image_type = "UPLOAD"
+
+        # Run inference
+        result = inference_engine.predict(
+            sample_id=build_request_sample_id("upload", file.filename or "upload", len(contents)),
+            lat=lat,
+            lon=lon,
+            image_type=model_image_type,
+            img_bgr=image_bgr,
+            conf_threshold=confidence,
+            buffer_sqft=buffer_radius_sqft,
+        )
+        t_infer = time.time()
+        
+        # Generate overlay
+        overlay_data_url = render_panel_detections(image_bgr, result, return_base64=True)
+        t_overlay = time.time()
+        
+        # Log timings
+        print(f"⏱️  UPLOAD ANALYSIS: Read={t_read-t_start:.3f}s, Inference={t_infer-t_read:.3f}s, Overlay={t_overlay-t_infer:.3f}s, Total={t_overlay-t_start:.3f}s")
+        
+        # Transform result to match expected API format
+        panels = result.get("panels_in_buffer", [])
+        detections = []
+        for panel in panels:
+            bbox = panel["bbox_center"]
+            detections.append({
+                "x1": bbox[0] - bbox[2]/2,
+                "y1": bbox[1] - bbox[3]/2,
+                "x2": bbox[0] + bbox[2]/2,
+                "y2": bbox[1] + bbox[3]/2,
+                "confidence": panel["conf"]
+            })
+        
+        api_result = {
+            "filename": file.filename,
+            "status": "success",
+            "overlay_path": overlay_data_url,
+            "requested_image_type": requested_image_type,
+            **result,
+            "processed_at": datetime.now().isoformat()
+        }
         
         return api_result
     
+    except HTTPException:
+        raise
     except Exception as e:
         return {
             "status": "error",
@@ -229,91 +208,58 @@ async def predict_by_coords(req: CoordinateRequest, confidence: float = 0.5):
     
     if confidence < 0 or confidence > 1:
         raise HTTPException(status_code=400, detail="Confidence must be 0-1")
+
+    try:
+        lat, lng = validate_coordinates(req.latitude, req.longitude)
+        buffer_radius_sqft = int(req.buffer_radius_sqft or 1200)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
     
     try:
-        # Generate a sample_id for this coordinate request
-        lat, lng = req.latitude, req.longitude
-        sample_id = hash(f"{lat}_{lng}") % 10000  # Create a unique ID
+        t_start = time.time()
+        sample_id = build_request_sample_id("coords", lat, lng)
         
         # Fetch satellite image from Google Static Maps
-        print(f"Fetching satellite image for coordinates ({lat}, {lng})")
         satellite_image = maps_client.fetch_image(lat, lng)
+        t_fetch = time.time()
         
-        # Save image to expected location
-        google_img_dir = Path("data/processed/google_images_all")
-        google_img_dir.mkdir(parents=True, exist_ok=True)
-        img_path = google_img_dir / f"{sample_id}.jpg"
-        satellite_image.save(img_path, format="JPEG")
+        # Convert PIL to BGR numpy array
+        image_np = np.array(satellite_image)
+        image_bgr = cv2.cvtColor(image_np, cv2.COLOR_RGB2BGR)
         
-        # Run inference with "SATELLITE" type to use pixel-to-meter conversion
-        result = inference_engine.predict(sample_id=sample_id, lat=lat, lon=lng, image_type="SATELLITE")
+        # Run inference using in-memory image
+        result = inference_engine.predict(
+            sample_id=sample_id, 
+            lat=lat, 
+            lon=lng, 
+            image_type="SATELLITE",
+            img_bgr=image_bgr,
+            conf_threshold=confidence,
+            buffer_sqft=buffer_radius_sqft,
+        )
+        t_infer = time.time()
         
-        # Load the image for overlay generation
-        img_bgr = cv2.imread(str(img_path))
+        # Generate overlay in-memory as base64
+        overlay_data_url = render_panel_detections(image_bgr, result, return_base64=True)
+        t_overlay = time.time()
         
-        # Create overlay image with bounding boxes
-        overlays_dir = Path("outputs/overlays")
-        overlays_dir.mkdir(parents=True, exist_ok=True)
-        overlay_path = overlays_dir / f"{sample_id}_overlay.jpg"
+        # Log timings
+        print(f"⏱️  COORDS ANALYSIS: Fetch={t_fetch-t_start:.3f}s, Inference={t_infer-t_fetch:.3f}s, Overlay={t_overlay-t_infer:.3f}s, Total={t_overlay-t_start:.3f}s")
         
-        # Generate the overlay with bounding boxes
-        create_overlay_image(img_bgr, result, overlay_path)
-        
-        # Transform result to match expected API format
-        detections = []
-        for panel in result.get("panels_in_buffer", []):
-            bbox = panel["bbox_center"]
-            detections.append({
-                "x1": bbox[0] - bbox[2]/2,
-                "y1": bbox[1] - bbox[3]/2,
-                "x2": bbox[0] + bbox[2]/2,
-                "y2": bbox[1] + bbox[3]/2,
-                "confidence": panel["conf"]
-            })
-        
-        # Convert overlay image to base64 for frontend display
-        import base64
-        with open(overlay_path, "rb") as img_file:
-            overlay_base64 = base64.b64encode(img_file.read()).decode('utf-8')
-            overlay_data_url = f"data:image/jpeg;base64,{overlay_base64}"
-        
+        # Combine result with overlay
         api_result = {
             "status": "success",
-            "coordinates": {"lat": lat, "lng": lng},
-            "detections": len(detections),
-            "detection_list": detections,
-            "confidence_threshold": confidence,
-            "has_solar": result["has_solar"],
-            "confidence": result["confidence"],
-            "pv_area_sqm_est": result["pv_area_sqm_est"],
-            "estimated_capacity_kw": round(float(result["pv_area_sqm_est"]) * 0.2, 2),
-            "estimated_annual_production_kwh": round(float(result["pv_area_sqm_est"]) * 0.2 * 1460, 2),
-            "panels_in_buffer": result["panels_in_buffer"],
-            "qc_status": result["qc_status"],
-            "buffer_radius_sqft": result["buffer_radius_sqft"],
-            "image_metadata": result["image_metadata"],
-            "overlay_image": overlay_data_url,  # Add overlay image as base64
-            "sample_id": sample_id,
-            "latitude": lat,
-            "longitude": lng,
-            "best_panel_id": result["best_panel_id"],
-            "bbox_or_mask": result["bbox_or_mask"],
-            "financial_insights": result["financial_insights"],
-            "environmental_impact": result["environmental_impact"],
-            "technical_specs": result["technical_specs"]
+            "overlay_path": overlay_data_url,
+            **result,
+            "processed_at": datetime.now().isoformat()
         }
-        
-        # Clean up the temporary image
-        if img_path.exists():
-            img_path.unlink()
-        # Clean up the overlay image
-        if overlay_path.exists():
-            overlay_path.unlink()
         
         return api_result
 
 
         
+    except HTTPException:
+        raise
     except Exception as e:
         return {
             "status": "error",
@@ -328,46 +274,31 @@ async def batch_predict(files: list[UploadFile] = File(...), confidence: float =
     """
     results = []
     
-    for file in files:
+    for idx, file in enumerate(files):
         contents = await file.read()
         image_array = np.frombuffer(contents, np.uint8)
         image = cv2.imdecode(image_array, cv2.IMREAD_COLOR)
         
         if image is not None:
-            with tempfile.NamedTemporaryFile(suffix='.jpg', delete=False) as temp_file:
-                temp_path = temp_file.name
-                cv2.imwrite(temp_path, image)
+            sample_id = build_request_sample_id("batch_upload", file.filename or "upload", len(contents), idx)
+            lat, lon = 0.0, 0.0
+            result = inference_engine.predict(
+                sample_id=sample_id,
+                lat=lat,
+                lon=lon,
+                image_type="UPLOAD",
+                img_bgr=image,
+                conf_threshold=confidence,
+                buffer_sqft=0,
+            )
             
-            try:
-                # Use our inference engine for better results
-                sample_id = hash(file.filename) % 10000
-                lat, lon = 0.0, 0.0
-                
-                # Temporarily save to Google images directory
-                google_img_dir = Path("data/processed/google_images_all")
-                google_img_dir.mkdir(parents=True, exist_ok=True)
-                temp_google_path = google_img_dir / f"{sample_id}.jpg"
-                
-                import shutil
-                shutil.copy2(temp_path, temp_google_path)
-                
-                result = inference_engine.predict(sample_id=sample_id, lat=lat, lon=lon)
-                
-                results.append({
-                    "filename": file.filename,
-                    "detections": len(result.get("panels_in_buffer", [])),
-                    "confidence_threshold": confidence,
-                    "has_solar": result["has_solar"],
-                    "pv_area_sqm_est": result["pv_area_sqm_est"]
-                })
-                
-                # Clean up
-                if os.path.exists(temp_google_path):
-                    os.unlink(temp_google_path)
-                    
-            finally:
-                if os.path.exists(temp_path):
-                    os.unlink(temp_path)
+            results.append({
+                "filename": file.filename,
+                "detections": len(result.get("panels_in_buffer", [])),
+                "confidence_threshold": confidence,
+                "has_solar": result["has_solar"],
+                "pv_area_sqm_est": result["pv_area_sqm_est"]
+            })
     
     return {
         "total_images": len(files),
@@ -376,7 +307,7 @@ async def batch_predict(files: list[UploadFile] = File(...), confidence: float =
 
 
 if __name__ == "__main__":
-    print("\n🚀 Starting FastAPI server...")
+    print("\nStarting FastAPI server...")
     print("API docs: http://localhost:8002/docs")
     print("API redoc: http://localhost:8002/redoc")
     

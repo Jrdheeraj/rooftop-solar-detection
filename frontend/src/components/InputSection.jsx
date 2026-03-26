@@ -7,6 +7,8 @@ const InputSection = ({ onAnalyze }) => {
   const [file, setFile] = useState(null);
   const [preview, setPreview] = useState(null);
   const [coords, setCoords] = useState({ lat: '', lng: '' });
+  const [uploadCoords, setUploadCoords] = useState({ lat: '', lng: '' });
+  const [uploadImageType, setUploadImageType] = useState('PHOTO');
   const [confidence, setConfidence] = useState(0.5);
   const [buffer, setBuffer] = useState('1200');
 
@@ -23,6 +25,14 @@ const InputSection = ({ onAnalyze }) => {
     if (activeTab === 'coords' && (!coords.lat || !coords.lng)) {
       return alert('Please enter valid coordinates');
     }
+
+    if (activeTab === 'upload' && uploadImageType === 'SATELLITE') {
+      const lat = parseFloat(uploadCoords.lat);
+      const lng = parseFloat(uploadCoords.lng);
+      if (isNaN(lat) || isNaN(lng) || lat < -90 || lat > 90 || lng < -180 || lng > 180) {
+        return alert('Satellite image uploads need valid latitude and longitude for accurate scaling');
+      }
+    }
     
     // Validate coordinates
     if (activeTab === 'coords') {
@@ -36,6 +46,9 @@ const InputSection = ({ onAnalyze }) => {
     onAnalyze({
       type: activeTab,
       data: activeTab === 'upload' ? file : coords,
+      imageType: uploadImageType,
+      latitude: uploadCoords.lat,
+      longitude: uploadCoords.lng,
       confidence,
       buffer
     });
@@ -100,6 +113,26 @@ const InputSection = ({ onAnalyze }) => {
                   exit={{ opacity: 0, x: 10 }}
                   className="space-y-8"
                 >
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="space-y-2">
+                      <label className="text-xs font-bold text-gray-400 uppercase tracking-wider ml-1">Image Type</label>
+                      <select
+                        value={uploadImageType}
+                        onChange={(e) => setUploadImageType(e.target.value)}
+                        className="w-full px-6 py-4 bg-gray-50 border border-gray-100 rounded-2xl focus:outline-none focus:ring-2 focus:ring-green-500/20 font-semibold text-gray-700"
+                      >
+                        <option value="PHOTO">Normal Image / Photo</option>
+                        <option value="SATELLITE">Satellite Image</option>
+                      </select>
+                    </div>
+                    <div className="p-5 bg-green-50/60 rounded-2xl border border-green-100 flex items-start gap-3">
+                      <div className="p-2 bg-green-100 rounded-lg text-green-600 mt-0.5"><FiTarget /></div>
+                      <p className="text-sm text-green-800 leading-relaxed font-medium">
+                        Use <span className="font-bold">Photo</span> for normal rooftop images. Use <span className="font-bold">Satellite</span> only for top-down map or satellite images.
+                      </p>
+                    </div>
+                  </div>
+
                   <label className="relative group cursor-pointer block border-2 border-dashed border-gray-200 rounded-[2rem] p-12 text-center hover:border-green-400 hover:bg-green-50/30 transition-all">
                     <input type="file" className="hidden" accept="image/*" onChange={handleFileChange} />
                     
@@ -125,6 +158,31 @@ const InputSection = ({ onAnalyze }) => {
                       </div>
                     )}
                   </label>
+
+                  {uploadImageType === 'SATELLITE' && (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div className="space-y-2">
+                        <label className="text-xs font-bold text-gray-400 uppercase tracking-wider ml-1">Latitude</label>
+                        <input
+                          type="text"
+                          placeholder="e.g. 17.4483"
+                          value={uploadCoords.lat}
+                          onChange={(e) => setUploadCoords({ ...uploadCoords, lat: e.target.value })}
+                          className="w-full px-6 py-4 bg-gray-50 border border-gray-100 rounded-2xl focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500 transition-all font-medium"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-xs font-bold text-gray-400 uppercase tracking-wider ml-1">Longitude</label>
+                        <input
+                          type="text"
+                          placeholder="e.g. 78.3915"
+                          value={uploadCoords.lng}
+                          onChange={(e) => setUploadCoords({ ...uploadCoords, lng: e.target.value })}
+                          className="w-full px-6 py-4 bg-gray-50 border border-gray-100 rounded-2xl focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500 transition-all font-medium"
+                        />
+                      </div>
+                    </div>
+                  )}
                 </motion.div>
               ) : (
                 <motion.div

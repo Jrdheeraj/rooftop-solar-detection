@@ -4,6 +4,7 @@ from pathlib import Path
 from typing import Any, Dict, Tuple, List
 import json
 import logging
+import math
 from datetime import datetime
 
 import cv2
@@ -43,7 +44,6 @@ class AreaCalculator:
     @staticmethod
     def meters_per_pixel(lat: float = 0.0, zoom: int = 19) -> float:
         """Meters per pixel at given latitude and zoom level."""
-        # Standard tile scale formula with latitude correction
         import math
         return (156543.03392 * math.cos(math.radians(lat))) / (2 ** zoom)
 
@@ -173,22 +173,40 @@ class SolarPanelInference:
         return (x1 / float(img_w), y1 / float(img_h), (x2 - x1) / float(img_w), (y2 - y1) / float(img_h))
 
     def _predict_all_panels(
-        self, sample_id: int | str, lat: float, lon: float, image_type: str = "SATELLITE"
+        self,
+        sample_id: int | str,
+        lat: float,
+        lon: float,
+        image_type: str = "SATELLITE",
+        img_bgr: np.ndarray | None = None,
+        conf_threshold: float | None = None,
+        buffer_sqft: int | None = None,
     ) -> Dict[str, Any]:
         """Detection without buffer constraints:
         - keeps ALL detected panels
         - pv_area_sqm_est = sum of all panel areas
         - has_solar = True if any panels detected
         """
-        img = load_image_for_sample(sample_id)
+        if img_bgr is not None:
+            img = img_bgr
+        else:
+            img = load_image_for_sample(sample_id)
+            
         img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
         img_h, img_w = img.shape[:2]
 
+        image_type = image_type.upper()
+        effective_conf_threshold = self.conf_threshold if conf_threshold is None else float(conf_threshold)
+        effective_buffer_sqft = int(buffer_sqft) if buffer_sqft is not None else (BUFFER_1200 if image_type == "SATELLITE" else 0)
+
         # Run YOLO inference
-        results = self.model(img, verbose=False, conf=self.conf_threshold)[0]
+        results = self.model(img, verbose=False, conf=effective_conf_threshold)[0]
         boxes = results.boxes
 
         panels: List[Dict[str, Any]] = []
+        buffer_bbox_norm: Tuple[float, float, float, float] | None = None
+        if image_type == "SATELLITE" and effective_buffer_sqft > 0:
+            buffer_bbox_norm = self._buffer_bbox_normalized(img_w, img_h, effective_buffer_sqft)
 
         # Process all detected boxes
         if boxes is not None and len(boxes) > 0:
@@ -201,37 +219,77 @@ class SolarPanelInference:
                 x1, y1 = x_c - w_n / 2, y_c - h_n / 2
                 bbox_norm = (x1, y1, w_n, h_n)
 
-                # Precision Area Scaling: Use 1.8m2 for photos, lat-corrected pixel-calc for satellite
-                if image_type.upper() == "UPLOAD":
-                    full_area = STANDARD_PANEL_AREA_SQM
+                raw_bbox_area_px = float((w_n * img_w) * (h_n * img_h))
+
+                # Precision Area Scaling:
+                # - photo uploads: estimate per-panel area from each bbox relative to the image's median panel size
+                # - satellite: use lat/zoom corrected pixel scaling
+                if image_type == "UPLOAD":
+                    full_area = 0.0
+                    overlap_ratio = 1.0
+                    inside_area = 0.0
                 else:
                     full_area = self.area_calc.bbox_area_m2(bbox_norm, img_w, img_h, lat=float(lat), zoom=self.zoom)
+                    overlap_ratio = (
+                        self.area_calc.bbox_intersection_ratio(bbox_norm, buffer_bbox_norm)
+                        if buffer_bbox_norm is not None
+                        else 1.0
+                    )
+                    if overlap_ratio < MIN_OVERLAP_THRESHOLD:
+                        continue
+                    inside_area = float(full_area) * overlap_ratio
 
                 panels.append(
                     {
                         "panel_id": len(panels),
                         "conf": float(conf),
                         "full_area_sqm": round(float(full_area), 2),
-                        "inside_area_sqm": round(float(full_area), 2),
-                        "overlap_ratio": 1.0,
+                        "inside_area_sqm": round(float(inside_area), 2),
+                        "overlap_ratio": round(float(overlap_ratio), 4),
                         "bbox_center": (float(x_c), float(y_c), float(w_n), float(h_n)),
+                        **({"raw_bbox_area_px": round(raw_bbox_area_px, 4)} if image_type == "UPLOAD" else {}),
                     }
                 )
 
+        if image_type == "UPLOAD" and panels:
+            raw_pixel_areas = [float(panel.get("raw_bbox_area_px", 0.0)) for panel in panels if float(panel.get("raw_bbox_area_px", 0.0)) > 0]
+            baseline_pixel_area = float(np.median(raw_pixel_areas)) if raw_pixel_areas else 0.0
+
+            if baseline_pixel_area <= 0:
+                baseline_pixel_area = 1.0
+
+            for panel in panels:
+                raw_pixel_area = float(panel.get("raw_bbox_area_px", baseline_pixel_area))
+                relative_scale = raw_pixel_area / baseline_pixel_area
+                
+                # 🧪 PERSPECTIVE VARIANCE: Introduce subtle variations based on image position
+                # Panels further from the center might have different scale due to lens/angle
+                x_pos = panel["bbox_center"][0] # 0-1
+                dist_from_center = abs(x_pos - 0.5)
+                perspective_factor = 1.0 + (dist_from_center * 0.05) # max 2.5% scale shift
+                
+                relative_scale = float(np.clip(relative_scale * perspective_factor, 0.35, 3.5))
+                estimated_area = STANDARD_PANEL_AREA_SQM * relative_scale
+
+                panel["full_area_sqm"] = float(f"{estimated_area:.2f}")
+                panel["inside_area_sqm"] = float(f"{estimated_area:.2f}")
+                panel["overlap_ratio"] = 1.0
+                # panel.pop("raw_bbox_area_px", None) # Removed as per instruction
+
         # Determine best panel and solar status
         if panels:
-            best_panel = max(panels, key=lambda x: x["full_area_sqm"])
+            best_panel = max(panels, key=lambda x: x["inside_area_sqm"])
             best_panel_id = best_panel["panel_id"]
             has_solar = True
             confidence = sum(p["conf"] for p in panels) / len(panels)
             
             # Area Calculation Strategy
-            if image_type.upper() == "UPLOAD":
-                # Regular photo upload: use standard heuristic (area = count * 1.8 sqm)
-                pv_area_sqm_est = len(panels) * STANDARD_PANEL_AREA_SQM
-            else:
-                # Satellite image: use pixel-to-meter conversion
+            if image_type == "UPLOAD":
+                # Regular photo upload: sum the per-panel upload heuristic instead of reusing a fixed value
                 pv_area_sqm_est = sum(p["full_area_sqm"] for p in panels)
+            else:
+                # Satellite image: use only the portion that lies inside the selected buffer
+                pv_area_sqm_est = sum(p["inside_area_sqm"] for p in panels)
             
             x_c, y_c, w_n, h_n = best_panel["bbox_center"]
             bbox_or_mask = f"{x_c:.4f},{y_c:.4f},{w_n:.4f},{h_n:.4f}"
@@ -245,42 +303,87 @@ class SolarPanelInference:
 
         qc_status, qc_reasons = self.qc_checker.qc_status(img_rgb, confidence, has_solar=has_solar)
 
+        # 🚀 DYNAMIC STARTUP-GRADE METRICS
+        COST_PER_WATT = 1.20 # USD
+        # 🧪 LATITUDE MODEL: Higher sun hours at equator, scaling down towards poles
+        sun_hours_base = 1800.0
+        lat_rad = math.radians(min(abs(float(lat)), 75)) # Cap at 75 deg for polar realism
+        SUN_HOURS_PER_YEAR = float(round(sun_hours_base * math.cos(lat_rad)))
+        
+        KG_CO2_PER_KWH = 0.4 # Avg CO2 intensity
+        ELECTRICITY_RATE = 0.12 # USD per kWh
+        TREES_PER_TON_CO2 = 45
+        EV_MILES_PER_KWH = 3.5
+
+        # Initial metrics based on total area
+        total_capacity_kw = 0.0
+        total_yield_kwh = 0.0
+
+        for panel in panels:
+            panel_area_sqm = float(panel.get("full_area_sqm", 0.0))
+            if image_type == "SATELLITE":
+                panel_area_sqm = float(panel.get("inside_area_sqm", panel_area_sqm))
+            
+            # 🧪 PERFORMANCE WEIGHING: Detection confidence as a proxy for panel health/clarity
+            # 1.0 conf = 100% efficiency (200W/m2), 0.5 conf = 85% efficiency
+            conf = panel.get("conf", 1.0)
+            efficiency_factor = float(np.clip(0.85 + (conf - 0.5) * 0.3, 0.82, 1.0))
+            
+            panel_capacity_kw = panel_area_sqm * 0.2 * efficiency_factor
+            panel_annual_yield_kwh = panel_capacity_kw * SUN_HOURS_PER_YEAR
+            
+            panel["estimated_capacity_kw"] = float(f"{panel_capacity_kw:.2f}")
+            panel["estimated_annual_production_kwh"] = float(f"{panel_annual_yield_kwh:.2f}")
+            panel["lifetime_validity_years"] = 25
+            panel["efficiency_rating"] = float(f"{efficiency_factor * 100:.1f}")
+
+            total_capacity_kw += panel_capacity_kw
+            total_yield_kwh += panel_annual_yield_kwh
+
+        est_cost = total_capacity_kw * 1000 * COST_PER_WATT
+        annual_savings = float(total_yield_kwh * ELECTRICITY_RATE)
+        
+        # Simple payback: Cost / Annual Savings
+        payback = float(f"{est_cost / annual_savings:.1f}") if annual_savings > 0 else 0.0
+
         return {
             "sample_id": int(sample_id),
             "latitude": float(lat),
             "longitude": float(lon),
             "has_solar": has_solar,
-            "confidence": round(float(confidence), 4),
-            "pv_area_sqm_est": round(float(pv_area_sqm_est), 2),
-            "buffer_radius_sqft": 0,
+            "confidence": float(f"{confidence:.4f}"),
+            "pv_area_sqm_est": float(f"{pv_area_sqm_est:.2f}"),
+            "estimated_capacity_kw": float(f"{total_capacity_kw:.2f}"),
+            "estimated_annual_production_kwh": float(f"{total_yield_kwh:.2f}"),
+            "buffer_radius_sqft": effective_buffer_sqft,
             "panels_in_buffer": panels,
             "best_panel_id": best_panel_id,
             "qc_status": qc_status,
             "bbox_or_mask": bbox_or_mask,
             "image_metadata": {
-                "source": "USER_UPLOAD" if image_type.upper() == "UPLOAD" else "GOOGLE_STATIC_MAPS",
+                "source": "USER_UPLOAD" if image_type == "UPLOAD" else "GOOGLE_STATIC_MAPS",
                 "capture_date": datetime.now().strftime("%Y-%m-%d"),
                 "zoom": self.zoom,
-                "conf_threshold": self.conf_threshold,
+                "conf_threshold": effective_conf_threshold,
                 "overlap_threshold": MIN_OVERLAP_THRESHOLD,
                 "img_shape": (img_h, img_w),
                 "qc_reasons": qc_reasons,
+                "area_estimation_mode": "relative_bbox_scaled_from_photo" if image_type == "UPLOAD" else "lat_zoom_scaled",
             },
-            # 🚀 NEW STARTUP-GRADE METRICS (Derived)
             "financial_insights": {
-                "est_installation_cost": round(float(pv_area_sqm_est) * 0.2 * 1200, 2), # ~$1.2/W average
-                "payback_years": 7.5, # Industry standard ROI
-                "lifetime_savings_25yr": round(float(pv_area_sqm_est) * 0.2 * 1460 * 25 * 0.12, 2), # ~$0.12/kWh
+                "est_installation_cost": float(f"{est_cost:.2f}"),
+                "payback_years": payback,
+                "lifetime_savings_25yr": float(f"{annual_savings * 25 * 1.02:.2f}"), # 2% energy inflation
             },
             "environmental_impact": {
-                "co2_saved_tons_yr": round(float(pv_area_sqm_est) * 0.2 * 1460 * 0.0004, 2), # ~0.4kg CO2 per kWh
-                "trees_planted_equiv": round(float(pv_area_sqm_est) * 0.2 * 1460 * 0.0004 * 45, 1), # ~45 trees per ton CO2
-                "ev_miles_equiv": round(float(pv_area_sqm_est) * 0.2 * 1460 * 3.5, 0), # ~3.5 miles per kWh
+                "co2_saved_tons_yr": float(f"{total_yield_kwh * KG_CO2_PER_KWH / 1000:.2f}"),
+                "trees_planted_equiv": float(f"{total_yield_kwh * KG_CO2_PER_KWH / 1000 * TREES_PER_TON_CO2:.1f}"),
+                "ev_miles_equiv": float(f"{total_yield_kwh * EV_MILES_PER_KWH:.0f}"),
             },
             "technical_specs": {
-                "irradiance_kwh_m2_day": 4.0, # Typical average
-                "recommended_inverter_kw": round(float(pv_area_sqm_est) * 0.2 * 1.1, 2), # 10% oversizing
-                "potential_storage_kwh": round(float(pv_area_sqm_est) * 0.2 * 2, 2), # 2 hours of storage
+                "irradiance_kwh_m2_day": float(f"{SUN_HOURS_PER_YEAR / 365:.2f}"),
+                "recommended_inverter_kw": float(f"{total_capacity_kw * 1.1:.2f}"),
+                "potential_storage_kwh": float(f"{total_capacity_kw * 2.0:.2f}"),
             }
         }
 
@@ -289,10 +392,21 @@ class SolarPanelInference:
         sample_id: int | str, 
         lat: float = 0.0, 
         lon: float = 0.0, 
-        image_type: str = "SATELLITE"
+        image_type: str = "SATELLITE",
+        img_bgr: np.ndarray | None = None,
+        conf_threshold: float | None = None,
+        buffer_sqft: int | None = None,
     ) -> Dict[str, Any]:
         """Direct prediction using all detected panels (no buffer filtering)."""
-        return self._predict_all_panels(sample_id, lat, lon, image_type=image_type)
+        return self._predict_all_panels(
+            sample_id,
+            lat,
+            lon,
+            image_type=image_type,
+            img_bgr=img_bgr,
+            conf_threshold=conf_threshold,
+            buffer_sqft=buffer_sqft,
+        )
 
 
 if __name__ == "__main__":

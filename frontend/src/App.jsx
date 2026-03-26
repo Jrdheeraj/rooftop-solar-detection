@@ -26,24 +26,29 @@ function App() {
     try {
       let response;
       if (data.type === 'upload') {
-        setLoadingMessage('Uploading image and detecting solar panels...');
-        response = await apiService.analyzeImage(data.data, data.confidence);
+        setLoadingMessage(
+          data.imageType === 'SATELLITE'
+            ? 'Uploading satellite image and analyzing with coordinates...'
+            : 'Uploading image and detecting solar panels...'
+        );
+        response = await apiService.analyzeImage(data.data, data.confidence, {
+          imageType: data.imageType,
+          latitude: data.latitude,
+          longitude: data.longitude,
+          buffer: data.buffer,
+        });
       } else if (data.type === 'coords') {
         setLoadingMessage('Fetching satellite data and analyzing coordinates...');
         response = await apiService.analyzeCoordinates(
           parseFloat(data.data.lat),
           parseFloat(data.data.lng),
-          data.confidence
+          data.confidence,
+          data.buffer
         );
       }
 
       if (response && response.status === 'success') {
-        // Ensure result has overlay_path for ResultsSection to render
-        const finalResult = {
-          ...response,
-          overlay_path: response.overlay_image // Map backend property to frontend expectation
-        };
-        setResult(finalResult);
+        setResult(response);
         
         // Scroll to results
         setTimeout(() => {
@@ -72,7 +77,7 @@ function App() {
   };
 
   return (
-    <div className="bg-white min-h-screen">
+    <div className="bg-white min-h-screen relative">
       <Navbar />
       <div id="home">
         <Hero />

@@ -332,7 +332,371 @@
   },
   {
     "sample_id": 8,
-    "latitude": 22.98773751,
+    "latitude": export default function SolarScanBox({ imageSrc }) {
+  return (
+    <div style={s.darkBox}>
+      {/* Top Pills */}
+      <div style={s.pillRow}>
+        <div style={s.pillDark}>🔍 AI DETECTION</div>
+        <div style={s.pillGreen}>4 PANELS DETECTED</div>
+        <div style={s.pillBlue}>VERIFIABLE</div>
+      </div>
+
+      {/* Detection Title */}
+      <p style={s.detectionTitle}>Solar Panel Detection — PANELS DETECTED</p>
+
+      {/* 3-Column Layout */}
+      <div style={s.threeCol}>
+
+        {/* LEFT CARD */}
+        <div style={s.sideCard}>
+          <SectionBlock title="VISUAL LEGEND">
+            <LegendItem color="#00ff88" label="Lime: Prime Target" />
+            <LegendItem color="#00e5ff" label="Cyan: Verified Panel" />
+          </SectionBlock>
+
+          <div style={s.divider} />
+
+          <SectionBlock title="DETECTION SPECS">
+            <SpecRow label="Engine" value="YOLOv8 Solar" />
+            <SpecRow label="Type" value="PHOTO" />
+            <SpecRow label="Zoom" value="19x" />
+            <SpecRow label="Buffer" value="0 sqft" />
+          </SectionBlock>
+        </div>
+
+        {/* CENTER IMAGE */}
+        <div style={s.centerCol}>
+          <div style={s.imageWrapper}>
+            <img
+              src={imageSrc || "https://images.unsplash.com/photo-1508514177221-188b1cf16e9d?w=900&q=80"}
+              alt="Solar Panel Detection"
+              style={s.image}
+            />
+            {/* Panel Tags */}
+            <PanelTag label="P3 | 0.41 | 1.8m²" color="#00e5ff" top="12%" left="44%" />
+            <PanelTag label="P0 | 0.75 | 1.8m²" color="#00ff88" top="42%" left="62%" />
+            <PanelTag label="P1 | 0.67 | 1.8m²" color="#00e5ff" top="52%" left="18%" />
+            <PanelTag label="P2 | 0.46 | 1.8m²" color="#00e5ff" top="72%" left="68%" />
+          </div>
+        </div>
+
+        {/* RIGHT CARD */}
+        <div style={s.sideCard}>
+          <SectionBlock title="CORE INTELLIGENCE">
+            <MetricRow label="STATUS:" value="VERIFIED" highlight />
+            <MetricRow label="COUNT:" value="4 Units" />
+            <MetricRow label="CONF:" value="57.4%" />
+            <MetricRow label="QC:" value="VERIFIABLE" />
+          </SectionBlock>
+
+          <div style={s.divider} />
+
+          <SectionBlock title="ENERGY ESTIMATES">
+            <MetricRow label="AREA:" value="7.2 m²" />
+            <MetricRow label="CAPACITY:" value="1.44 kW" highlight />
+            <MetricRow label="YIELD:" value="2102 kWh/y" highlight />
+          </SectionBlock>
+
+          <div style={s.divider} />
+
+          <SectionBlock title="LOCATION DATA">
+            <MetricRow label="LAT:" value="0.0000°N" />
+            <MetricRow label="LON:" value="0.0000°E" />
+          </SectionBlock>
+        </div>
+      </div>
+
+      {/* Bottom Confidence Bar */}
+      <div style={s.confBar}>
+        <span style={s.confLabel}>MODEL CONFIDENCE</span>
+        <div style={s.confTrack}>
+          <div style={s.confFill} />
+        </div>
+        <span style={s.confValue}>57.4%</span>
+      </div>
+    </div>
+  );
+}
+
+/* ── Sub-components ── */
+
+function SectionBlock({ title, children }) {
+  return (
+    <div style={s.section}>
+      <p style={s.sectionTitle}>{title}</p>
+      <div style={s.sectionLine} />
+      <div style={s.sectionBody}>{children}</div>
+    </div>
+  );
+}
+
+function LegendItem({ color, label }) {
+  return (
+    <div style={s.legendItem}>
+      <span style={{ ...s.dot, background: color }} />
+      <span style={s.legendText}>{label}</span>
+    </div>
+  );
+}
+
+function SpecRow({ label, value }) {
+  return (
+    <div style={s.specRow}>
+      <span style={s.specLabel}>{label}:</span>
+      <span style={s.specValue}>{value}</span>
+    </div>
+  );
+}
+
+function MetricRow({ label, value, highlight }) {
+  return (
+    <div style={s.metricRow}>
+      <span style={s.metricLabel}>{label}</span>
+      <span style={highlight ? s.metricHighlight : s.metricValue}>{value}</span>
+    </div>
+  );
+}
+
+function PanelTag({ label, color, top, left }) {
+  return (
+    <div
+      style={{
+        ...s.tag,
+        background: color,
+        top,
+        left,
+      }}
+    >
+      {label}
+    </div>
+  );
+}
+
+/* ── Styles ── */
+
+const s = {
+  darkBox: {
+    background: "#111418",
+    borderRadius: "22px",
+    padding: "28px 28px 24px",
+    boxSizing: "border-box",
+    fontFamily: "'DM Sans', 'Segoe UI', sans-serif",
+    width: "100%",
+  },
+
+  pillRow: {
+    display: "flex",
+    gap: "10px",
+    marginBottom: "18px",
+    flexWrap: "wrap",
+  },
+  pillDark: {
+    padding: "8px 18px",
+    borderRadius: "30px",
+    background: "#1e2229",
+    color: "#c8cdd8",
+    fontSize: "13px",
+    fontWeight: "600",
+    letterSpacing: "0.07em",
+    border: "1px solid #2e333f",
+  },
+  pillGreen: {
+    padding: "8px 20px",
+    borderRadius: "30px",
+    background: "#00c96a",
+    color: "#fff",
+    fontSize: "13px",
+    fontWeight: "700",
+    letterSpacing: "0.07em",
+  },
+  pillBlue: {
+    padding: "8px 20px",
+    borderRadius: "30px",
+    background: "#0077ff",
+    color: "#fff",
+    fontSize: "13px",
+    fontWeight: "700",
+    letterSpacing: "0.07em",
+  },
+
+  detectionTitle: {
+    color: "#00c96a",
+    fontWeight: "700",
+    fontSize: "17px",
+    textAlign: "center",
+    letterSpacing: "0.07em",
+    margin: "0 0 24px 0",
+    textTransform: "uppercase",
+  },
+
+  threeCol: {
+    display: "grid",
+    gridTemplateColumns: "210px 1fr 210px",
+    gap: "20px",
+    alignItems: "start",
+  },
+
+  sideCard: {
+    background: "#181c24",
+    borderRadius: "16px",
+    padding: "22px 18px",
+    border: "1px solid #252a35",
+  },
+
+  section: { marginBottom: "4px" },
+  sectionTitle: {
+    color: "#ffffff",
+    fontWeight: "700",
+    fontSize: "12px",
+    letterSpacing: "0.14em",
+    margin: "0 0 10px 0",
+    textTransform: "uppercase",
+    textAlign: "center",
+  },
+  sectionLine: {
+    height: "1px",
+    background: "#2b3040",
+    marginBottom: "14px",
+  },
+  sectionBody: {
+    display: "flex",
+    flexDirection: "column",
+    gap: "11px",
+  },
+
+  divider: {
+    height: "1px",
+    background: "#252a35",
+    margin: "18px 0",
+  },
+
+  legendItem: {
+    display: "flex",
+    alignItems: "center",
+    gap: "10px",
+  },
+  dot: {
+    width: "9px",
+    height: "9px",
+    borderRadius: "50%",
+    flexShrink: 0,
+  },
+  legendText: {
+    color: "#b8bece",
+    fontSize: "14px",
+    fontWeight: "500",
+  },
+
+  specRow: {
+    display: "flex",
+    justifyContent: "space-between",
+  },
+  specLabel: {
+    color: "#606878",
+    fontSize: "13.5px",
+    fontWeight: "500",
+  },
+  specValue: {
+    color: "#dce0ec",
+    fontSize: "13.5px",
+    fontWeight: "600",
+  },
+
+  metricRow: {
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  metricLabel: {
+    color: "#606878",
+    fontSize: "13px",
+    fontWeight: "600",
+    letterSpacing: "0.05em",
+    textTransform: "uppercase",
+  },
+  metricValue: {
+    color: "#dce0ec",
+    fontSize: "14px",
+    fontWeight: "700",
+  },
+  metricHighlight: {
+    color: "#00c96a",
+    fontSize: "14px",
+    fontWeight: "800",
+  },
+
+  centerCol: {
+    borderRadius: "14px",
+    overflow: "hidden",
+    lineHeight: 0,
+  },
+  imageWrapper: {
+    position: "relative",
+    borderRadius: "14px",
+    overflow: "hidden",
+    border: "1px solid #252a35",
+  },
+  image: {
+    width: "100%",
+    display: "block",
+    height: "440px",
+    objectFit: "cover",
+    borderRadius: "14px",
+  },
+
+  tag: {
+    position: "absolute",
+    fontSize: "11.5px",
+    fontWeight: "700",
+    padding: "4px 9px",
+    borderRadius: "6px",
+    color: "#0a0f1a",
+    letterSpacing: "0.04em",
+    whiteSpace: "nowrap",
+    pointerEvents: "none",
+  },
+
+  confBar: {
+    display: "flex",
+    alignItems: "center",
+    gap: "16px",
+    marginTop: "22px",
+    background: "#181c24",
+    borderRadius: "12px",
+    padding: "14px 20px",
+    border: "1px solid #252a35",
+  },
+  confLabel: {
+    color: "#606878",
+    fontSize: "12px",
+    fontWeight: "700",
+    letterSpacing: "0.1em",
+    textTransform: "uppercase",
+    whiteSpace: "nowrap",
+    minWidth: "140px",
+  },
+  confTrack: {
+    flex: 1,
+    height: "7px",
+    background: "#252a35",
+    borderRadius: "99px",
+    overflow: "hidden",
+  },
+  confFill: {
+    width: "57.4%",
+    height: "100%",
+    background: "#00c96a",
+    borderRadius: "99px",
+  },
+  confValue: {
+    color: "#00c96a",
+    fontWeight: "800",
+    fontSize: "16px",
+    minWidth: "52px",
+    textAlign: "right",
+  },
+};,
     "longitude": 72.62128461,
     "has_solar": false,
     "confidence": 0.5314,
