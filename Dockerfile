@@ -26,10 +26,13 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY . .
 
 # Make src importable as a package
-ENV PYTHONPATH=/app
+ENV PYTHONPATH=/app/src
 
 # Ensure outputs folders exist (defensive)
-RUN mkdir -p outputs/overlays outputs/logs
+RUN mkdir -p outputs/overlays outputs/logs data/processed/google_images_all
 
-# Single entrypoint: runs full batch pipeline
-CMD ["python", "-m", "src.batch_inference"]
+# Expose the API port
+EXPOSE 8002
+
+# Run the FastAPI server
+CMD ["uvicorn", "src.api:app", "--host", "0.0.0.0", "--port", "8002"]
