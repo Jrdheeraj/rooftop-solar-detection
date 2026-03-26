@@ -2,7 +2,7 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
-# System deps for scientific / CV stack
+# System deps
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     git \
@@ -14,25 +14,24 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libxext6 \
     libgl1 \
     && rm -rf /var/lib/apt/lists/*
-# Install CPU-only PyTorch and torchvision
+
+# Install PyTorch (CPU)
 RUN pip install --no-cache-dir \
     torch==2.1.0 torchvision==0.16.0 \
     --index-url https://download.pytorch.org/whl/cpu
-# Python dependencies
-COPY requirements.txt ./requirements.txt
+
+# Install Python deps
+COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy project code
+# Copy project
 COPY . .
 
-# Make src importable as a package
-ENV PYTHONPATH=/app/src
+# Correct PYTHONPATH
+ENV PYTHONPATH=/app
 
-# Ensure outputs folders exist (defensive)
+# Create folders
 RUN mkdir -p outputs/overlays outputs/logs data/processed/google_images_all
 
-# Expose the API port
-EXPOSE 8002
-
-# Run the FastAPI server
-CMD ["uvicorn", "src.api:app", "--host", "0.0.0.0", "--port", "8002"]
+# Use dynamic port for Render
+CMD ["sh", "-c", "uvicorn src.api:app --host 0.0.0.0 --port $PORT"]
