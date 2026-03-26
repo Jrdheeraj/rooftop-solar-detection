@@ -31,7 +31,7 @@ RUN grep -v "torch" requirements.txt > req_filtered.txt && \
 COPY . .
 
 # Make src importable
-ENV PYTHONPATH=/app
+ENV PYTHONPATH=/app:/app/src
 
 # Create required folders (safe)
 RUN mkdir -p outputs/overlays outputs/logs data/processed/google_images_all
