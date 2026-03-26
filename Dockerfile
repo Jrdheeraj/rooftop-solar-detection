@@ -37,4 +37,4 @@ ENV PYTHONPATH=/app:/app/src
 RUN mkdir -p outputs/overlays outputs/logs data/processed/google_images_all
 
 # Start FastAPI using dynamic port (RENDER REQUIREMENT)
-CMD ["sh", "-c", "uvicorn src.api:app --host 0.0.0.0 --port ${PORT:-10000}"]
+CMD ["sh", "-c", "uvicorn src.api:app --host 0.0.0.0 --port ${PORT:-10000} --proxy-headers --forwarded-allow-ips='*'"]
