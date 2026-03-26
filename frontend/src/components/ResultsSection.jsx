@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { jsPDF } from 'jspdf';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   FiMapPin, FiCpu, FiGrid, FiTarget, FiDownload, 
@@ -53,6 +54,115 @@ const ResultsSection = ({ data, onReset }) => {
     }
   };
 
+  const handleDownloadReport = () => {
+    const doc = new jsPDF();
+    const primaryColor = '#16a34a';
+    const secondaryColor = '#1e293b';
+    const accentColor = '#2563eb';
+
+    // 1. BRANDING & HEADER
+    doc.setFillColor(secondaryColor);
+    doc.rect(0, 0, 210, 40, 'F');
+    
+    doc.setTextColor('#ffffff');
+    doc.setFontSize(24);
+    doc.setFont('helvetica', 'bold');
+    doc.text('SolarScan Intelligence Report', 15, 25);
+    
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'normal');
+    doc.text(`Generated on: ${new Date().toLocaleString()}`, 150, 15);
+    doc.text(`Reference ID: SS-${Math.random().toString(36).substr(2, 9).toUpperCase()}`, 150, 22);
+
+    // 2. DETECTION SUMMARY SECTION
+    doc.setTextColor(secondaryColor);
+    doc.setFontSize(16);
+    doc.setFont('helvetica', 'bold');
+    doc.text('1. Analysis Overview', 15, 55);
+    
+    doc.setDrawColor(primaryColor);
+    doc.setLineWidth(0.5);
+    doc.line(15, 58, 195, 58);
+
+    doc.setFontSize(11);
+    doc.setFont('helvetica', 'normal');
+    let yPos = 68;
+    
+    const summaryData = [
+      ['Coordinates', `${result.lat || 'N/A'}, ${result.lng || 'N/A'}`],
+      ['QC Status', result.qc_status],
+      ['Confidence Score', `${(result.confidence * 100).toFixed(1)}%`],
+      ['Total Panels Detected', result.panels_in_buffer.toString()],
+      ['Estimated PV Area', `${result.total_area.toFixed(1)} sq.m`],
+      ['System Capacity', `${result.estimated_capacity_kw.toFixed(2)} kW`]
+    ];
+
+    summaryData.forEach(([label, value]) => {
+      doc.setFont('helvetica', 'bold');
+      doc.text(label + ':', 20, yPos);
+      doc.setFont('helvetica', 'normal');
+      doc.text(value, 80, yPos);
+      yPos += 8;
+    });
+
+    // 3. FINANCIAL & ENVIRONMENTAL
+    yPos += 10;
+    doc.setFontSize(16);
+    doc.setFont('helvetica', 'bold');
+    doc.text('2. Impacts & Financials', 15, yPos);
+    doc.line(15, yPos + 3, 195, yPos + 3);
+    yPos += 13;
+
+    const impactData = [
+      ['Annual Energy Yield', `${result.estimated_annual_production_kwh.toLocaleString()} kWh/year`],
+      ['Est. Installation Cost', `$${result.financial.est_installation_cost.toLocaleString()}`],
+      ['Payback period', `${result.financial.payback_years} Years`],
+      ['Lifetime Savings (25yr)', `$${result.financial.lifetime_savings_25yr.toLocaleString()}`],
+      ['Annual CO2 Offset', `${result.environmental.co2_saved_tons_yr} Tons`],
+      ['Eco-Equivalent', `${result.environmental.trees_planted_equiv.toLocaleString()} Trees Planted`]
+    ];
+
+    impactData.forEach(([label, value]) => {
+      doc.setFont('helvetica', 'bold');
+      doc.text(label + ':', 20, yPos);
+      doc.setFont('helvetica', 'normal');
+      doc.text(value, 80, yPos);
+      yPos += 8;
+    });
+
+    // 4. TECHNICAL SPECS
+    yPos += 10;
+    doc.setFontSize(16);
+    doc.setFont('helvetica', 'bold');
+    doc.text('3. Technical Configuration', 15, yPos);
+    doc.line(15, yPos + 3, 195, yPos + 3);
+    yPos += 13;
+
+    const technicalData = [
+      ['Recommended Inverter', `${result.technical.recommended_inverter_kw} kW Hybrid`],
+      ['Storage Potential', `${result.technical.potential_storage_kwh} kWh Lithium`],
+      ['Daily Irradiance', `${result.technical.irradiance_kwh_m2_day} kWh/m2/day`],
+      ['Grid Compatibility', 'Net Metering Ready']
+    ];
+
+    technicalData.forEach(([label, value]) => {
+      doc.setFont('helvetica', 'bold');
+      doc.text(label + ':', 20, yPos);
+      doc.setFont('helvetica', 'normal');
+      doc.text(value, 80, yPos);
+      yPos += 8;
+    });
+
+    // FOOTER
+    doc.setFillColor(primaryColor);
+    doc.rect(0, 280, 210, 17, 'F');
+    doc.setTextColor('#ffffff');
+    doc.setFontSize(10);
+    doc.text('SolarScan - Precision AI for the Renewables Revolution', 105, 290, { align: 'center' });
+
+    doc.save(`SolarScan_Report_${new Date().toISOString().split('T')[0]}.pdf`);
+  };
+
   return (
     <section className="py-24 bg-[#fafbfc]">
       <div className="max-w-7xl mx-auto px-6">
@@ -71,7 +181,10 @@ const ResultsSection = ({ data, onReset }) => {
             </h2>
           </div>
           <div className="flex gap-3">
-            <button className="flex items-center gap-2 px-5 py-3 border border-gray-200 rounded-2xl text-xs font-bold text-gray-700 hover:bg-gray-50 transition-all">
+            <button 
+              onClick={handleDownloadReport}
+              className="flex items-center gap-2 px-5 py-3 border border-gray-200 rounded-2xl text-xs font-bold text-gray-700 hover:bg-gray-50 transition-all"
+            >
               <FiFileText /> Export PDF
             </button>
             <button className="flex items-center gap-2 px-5 py-3 bg-[#16a34a] text-white rounded-2xl text-xs font-bold shadow-lg shadow-green-600/20 hover:bg-[#15803d] transition-all">

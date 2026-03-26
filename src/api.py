@@ -12,7 +12,12 @@ from ultralytics import YOLO
 import uvicorn
 import tempfile
 import os
-from typing import Dict, Any
+from typing import Dict, Any, List
+from pydantic import BaseModel
+
+class CoordinateRequest(BaseModel):
+    latitude: float
+    longitude: float
 
 # Import our custom modules
 from inference import SolarPanelInference
@@ -204,7 +209,7 @@ async def predict(file: UploadFile = File(...), confidence: float = 0.5):
 
 
 @app.post("/coords")
-async def predict_by_coords(lat: float, lng: float, confidence: float = 0.5):
+async def predict_by_coords(req: CoordinateRequest, confidence: float = 0.5):
     """
     Predict solar panels using coordinates and Google Static Maps
     
@@ -227,6 +232,7 @@ async def predict_by_coords(lat: float, lng: float, confidence: float = 0.5):
     
     try:
         # Generate a sample_id for this coordinate request
+        lat, lng = req.latitude, req.longitude
         sample_id = hash(f"{lat}_{lng}") % 10000  # Create a unique ID
         
         # Fetch satellite image from Google Static Maps

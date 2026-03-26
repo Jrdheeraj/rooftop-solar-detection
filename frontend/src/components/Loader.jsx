@@ -10,7 +10,7 @@ const messages = [
   "Finalizing your report..."
 ];
 
-const Loader = () => {
+const Loader = ({ message }) => {
   const [index, setIndex] = useState(0);
 
   useEffect(() => {
@@ -54,7 +54,7 @@ const Loader = () => {
             Processing Data
           </h3>
           <p className="text-[#16a34a] font-mono text-sm font-bold tracking-widest uppercase bg-green-50 px-4 py-1.5 rounded-full inline-block">
-            {messages[index]}
+            {message || messages[index]}
           </p>
         </motion.div>
       </AnimatePresence>

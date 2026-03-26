@@ -14,99 +14,58 @@ import './index.css';
 
 function App() {
   const [loading, setLoading] = useState(false);
+  const [loadingMessage, setLoadingMessage] = useState('');
   const [result, setResult] = useState(null);
+  const [error, setError] = useState(null);
 
   const handleAnalyze = async (data) => {
     setLoading(true);
+    setError(null);
+    setResult(null);
+
     try {
       let response;
-      
       if (data.type === 'upload') {
+        setLoadingMessage('Uploading image and detecting solar panels...');
         response = await apiService.analyzeImage(data.data, data.confidence);
       } else if (data.type === 'coords') {
-        // According to requirements, only /predict is used for now.
-        // Coordinate analysis would require fetching a map image first which the backend does,
-        // but for this fixed integration we prioritize the /predict endpoint.
-        alert('Coordinate analysis is being redirected to the standard image analysis flow.');
-        return;
+        setLoadingMessage('Fetching satellite data and analyzing coordinates...');
+        response = await apiService.analyzeCoordinates(
+          parseFloat(data.data.lat),
+          parseFloat(data.data.lng),
+          data.confidence
+        );
       }
 
-      if (response.status === 'success') {
-        // Use the overlay image with bounding boxes from the backend
-        // This image contains the actual bounding boxes and annotations
-        let overlayImage = null;
-        if (response.overlay_image) {
-          // Use the generated overlay with bounding boxes
-          overlayImage = response.overlay_image;
-        } else if (data.type === 'coords' && response.satellite_image_url) {
-          // Fallback to satellite image for coordinate analysis
-          overlayImage = response.satellite_image_url;
-        } else if (data.type === 'upload') {
-          // Fallback to uploaded image
-          overlayImage = URL.createObjectURL(data.data);
-        } else {
-          // Final fallback
-          const lat = parseFloat(data.data?.lat) || 0;
-          const lng = parseFloat(data.data?.lng) || 0;
-          const mapsApiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
-          if (mapsApiKey && mapsApiKey !== 'YOUR_API_KEY') {
-            overlayImage = `https://maps.googleapis.com/maps/api/staticmap?center=${lat},${lng}&zoom=19&size=400x400&maptype=satellite&key=${mapsApiKey}`;
-          } else {
-            // No API key available for fallback map
-            overlayImage = null;
-          }
-
-        }
-
-        // Transform API response to match the expected JSON format
-        const transformedResult = {
-          sample_id: response.sample_id || 9999,
-          latitude: response.latitude || response.coordinates?.lat || parseFloat(data.data?.lat) || 0,
-          longitude: response.longitude || response.coordinates?.lng || parseFloat(data.data?.lng) || 0,
-          has_solar: response.has_solar || false,
-          confidence: response.confidence || 0,
-          pv_area_sqm_est: response.pv_area_sqm_est || 0,
-          estimated_capacity_kw: response.estimated_capacity_kw || 0,
-          estimated_annual_production_kwh: response.estimated_annual_production_kwh || 0,
-          buffer_radius_sqft: response.buffer_radius_sqft || data.buffer || 1200,
-          panels_in_buffer: response.panels_in_buffer || [],
-          best_panel_id: response.best_panel_id || -1,
-          qc_status: response.qc_status || 'NOT_VERIFIABLE',
-          bbox_or_mask: response.bbox_or_mask || '',
-          image_metadata: {
-            source: response.image_metadata?.source || (data.type === 'coords' ? 'GOOGLE_STATIC_MAPS' : 'USER_UPLOAD'),
-            capture_date: response.image_metadata?.capture_date || new Date().toISOString().split('T')[0],
-            zoom: response.image_metadata?.zoom || 19,
-            conf_threshold: data.confidence,
-            overlap_threshold: 0.1,
-            img_shape: response.image_metadata?.img_shape || [400, 400],
-            qc_reasons: response.image_metadata?.qc_reasons || ['Analysis complete']
-          },
-          financial_insights: response.financial_insights || null,
-          environmental_impact: response.environmental_impact || null,
-          technical_specs: response.technical_specs || null,
-          overlay_path: overlayImage
+      if (response && response.status === 'success') {
+        // Ensure result has overlay_path for ResultsSection to render
+        const finalResult = {
+          ...response,
+          overlay_path: response.overlay_image // Map backend property to frontend expectation
         };
-        
-        setResult(transformedResult);
+        setResult(finalResult);
         
         // Scroll to results
         setTimeout(() => {
           document.getElementById('results')?.scrollIntoView({ behavior: 'smooth' });
         }, 100);
       } else {
-        throw new Error(response.message || 'Analysis failed');
+        throw new Error(response?.message || 'Analysis failed to return a successful status.');
       }
-    } catch (error) {
-      console.error('Analysis error:', error);
-      alert(`Analysis failed: ${error.message}`);
+    } catch (err) {
+      console.error('Analysis error:', err);
+      const msg = err.message || 'Failed to connect to the analysis engine.';
+      setError(msg);
+      alert(`Analysis failed: ${msg}`);
     } finally {
       setLoading(false);
+      setLoadingMessage('');
     }
   };
 
   const handleReset = () => {
     setResult(null);
+    setError(null);
     setTimeout(() => {
       document.getElementById('analyze')?.scrollIntoView({ behavior: 'smooth' });
     }, 100);
@@ -128,11 +87,26 @@ function App() {
         </div>
       )}
       
-      {loading && <Loader />}
+      {loading && <Loader message={loadingMessage} />}
       
       {result && (
         <div id="results">
           <ResultsSection data={result} onReset={handleReset} />
+        </div>
+      )}
+
+      {error && !loading && !result && (
+        <div className="max-w-4xl mx-auto px-6 pb-12 text-center">
+          <div className="bg-red-50 border border-red-100 p-6 rounded-[2rem]">
+            <p className="text-red-600 font-bold mb-2">Analysis Error</p>
+            <p className="text-red-400 text-sm">{error}</p>
+            <button 
+              onClick={() => setError(null)}
+              className="mt-4 px-6 py-2 bg-red-600 text-white rounded-xl text-xs font-bold"
+            >
+              Try Again
+            </button>
+          </div>
         </div>
       )}
 
