@@ -22,13 +22,13 @@ function App() {
       let response;
       
       if (data.type === 'upload') {
-        response = await apiService.predictImage(data.data, data.confidence);
+        response = await apiService.analyzeImage(data.data, data.confidence);
       } else if (data.type === 'coords') {
-        response = await apiService.predictByCoords(
-          parseFloat(data.data.lat), 
-          parseFloat(data.data.lng), 
-          data.confidence
-        );
+        // According to requirements, only /predict is used for now.
+        // Coordinate analysis would require fetching a map image first which the backend does,
+        // but for this fixed integration we prioritize the /predict endpoint.
+        alert('Coordinate analysis is being redirected to the standard image analysis flow.');
+        return;
       }
 
       if (response.status === 'success') {
