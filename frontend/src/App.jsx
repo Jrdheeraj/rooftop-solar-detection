@@ -59,6 +59,8 @@ function App() {
           has_solar: response.has_solar || false,
           confidence: response.confidence || 0,
           pv_area_sqm_est: response.pv_area_sqm_est || 0,
+          estimated_capacity_kw: response.estimated_capacity_kw || 0,
+          estimated_annual_production_kwh: response.estimated_annual_production_kwh || 0,
           buffer_radius_sqft: response.buffer_radius_sqft || data.buffer || 1200,
           panels_in_buffer: response.panels_in_buffer || [],
           best_panel_id: response.best_panel_id || -1,
@@ -73,6 +75,9 @@ function App() {
             img_shape: response.image_metadata?.img_shape || [400, 400],
             qc_reasons: response.image_metadata?.qc_reasons || ['Analysis complete']
           },
+          financial_insights: response.financial_insights || null,
+          environmental_impact: response.environmental_impact || null,
+          technical_specs: response.technical_specs || null,
           overlay_path: overlayImage
         };
         
@@ -95,7 +100,9 @@ function App() {
 
   const handleReset = () => {
     setResult(null);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    setTimeout(() => {
+      document.getElementById('analyze')?.scrollIntoView({ behavior: 'smooth' });
+    }, 100);
   };
 
   return (
@@ -122,16 +129,12 @@ function App() {
         </div>
       )}
 
-      {!result && (
-        <>
-          <div id="features">
-            <WhyChooseUs />
-          </div>
-          <div id="solutions">
-            <UseCases />
-          </div>
-        </>
-      )}
+      <div id="features">
+        <WhyChooseUs />
+      </div>
+      <div id="solutions">
+        <UseCases />
+      </div>
 
       <CTASection />
       <div id="about">

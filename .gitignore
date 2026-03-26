@@ -95,6 +95,27 @@ venv.bak/
 
 # --- Project-specific ignores ---
 
+# Frontend
+frontend/node_modules/
+frontend/dist/
+frontend/.env.local
+frontend/.env
+
+# Temporary Prediction Data
+data/processed/google_images_all/
+outputs/overlays/
+temp_google_image.jpg
+
+# Large Model Files
+# models/*.pt
+
+# OS Specific
+.DS_Store
+Thumbs.db
+.gemini/
+.idea/
+.vscode/
+
 # Large or raw data (keep only CSV you actually need)
 # Data (large files)
 dataset.zip

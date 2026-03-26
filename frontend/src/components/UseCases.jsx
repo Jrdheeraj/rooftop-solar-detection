@@ -37,9 +37,6 @@ const UseCases = () => {
             <p className="text-gray-500 font-medium leading-relaxed mb-8">
               Whether you're a single property owner or a large-scale utility provider, SolarScan provides the precision you need.
             </p>
-            <button className="px-8 py-3 bg-white border border-gray-200 rounded-2xl text-sm font-bold text-gray-700 hover:bg-gray-50 transition-all shadow-sm">
-              View Case Studies
-            </button>
           </div>
           
           <div className="lg:w-2/3 grid grid-cols-1 sm:grid-cols-2 gap-6">

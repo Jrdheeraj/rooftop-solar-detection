@@ -39,31 +39,33 @@ const Footer = () => {
           <div>
             <h4 className="text-xs font-black text-gray-900 uppercase tracking-widest mb-6 border-b border-gray-100 pb-2">Connect</h4>
             <div className="flex gap-4">
-              <a href="#" className="w-10 h-10 bg-white border border-gray-100 rounded-xl flex items-center justify-center text-gray-400 hover:text-green-600 hover:border-green-200 transition-all shadow-sm">
+              <a 
+                href="https://github.com/Jrdheeraj" 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="w-10 h-10 bg-white border border-gray-100 rounded-xl flex items-center justify-center text-gray-400 hover:text-green-600 hover:border-green-200 transition-all shadow-sm"
+              >
                 <FiGithub />
               </a>
-              <a href="#" className="w-10 h-10 bg-white border border-gray-100 rounded-xl flex items-center justify-center text-gray-400 hover:text-green-600 hover:border-green-200 transition-all shadow-sm">
-                <FiTwitter />
-              </a>
-              <a href="#" className="w-10 h-10 bg-white border border-gray-100 rounded-xl flex items-center justify-center text-gray-400 hover:text-green-600 hover:border-green-200 transition-all shadow-sm">
+              <a 
+                href="https://www.linkedin.com/in/kannemadugu-dheeraj-479515289/" 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="w-10 h-10 bg-white border border-gray-100 rounded-xl flex items-center justify-center text-gray-400 hover:text-green-600 hover:border-green-200 transition-all shadow-sm"
+              >
                 <FiLinkedin />
               </a>
-              <a href="#" className="w-10 h-10 bg-white border border-gray-100 rounded-xl flex items-center justify-center text-gray-400 hover:text-green-600 hover:border-green-200 transition-all shadow-sm">
+              <a 
+                href="mailto:jrdheeraj5@gmail.com" 
+                className="w-10 h-10 bg-white border border-gray-100 rounded-xl flex items-center justify-center text-gray-400 hover:text-green-600 hover:border-green-200 transition-all shadow-sm"
+              >
                 <FiMail />
               </a>
             </div>
           </div>
         </div>
 
-        <div className="pt-8 border-t border-gray-100 flex flex-col md:flex-row justify-between items-center gap-4">
-          <p className="text-xs font-bold text-gray-300 uppercase tracking-widest">
-            © 2026 SolarScan AI Systems · All Rights Reserved
-          </p>
-          <div className="flex gap-6">
-            <a href="#" className="text-[10px] font-black text-gray-300 uppercase hover:text-gray-400">Privacy Policy</a>
-            <a href="#" className="text-[10px] font-black text-gray-300 uppercase hover:text-gray-400">Terms of Service</a>
-          </div>
-        </div>
+        {/* COPYRIGHT AND BOTTOM LINKS REMOVED AS REQUESTED */}
       </div>
     </footer>
   );

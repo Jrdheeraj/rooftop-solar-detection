@@ -4,7 +4,7 @@ import { FiChevronDown, FiArrowRight, FiZap } from 'react-icons/fi';
 
 const Navbar = () => {
   return (
-    <nav className="fixed top-0 left-0 right-0 z-[100] bg-white/80 backdrop-blur-md border-b border-slate-100">
+    <nav className="absolute top-0 left-0 right-0 z-[100] bg-transparent">
       <div className="max-w-7xl mx-auto px-8 h-20 flex items-center justify-between">
         {/* LOGO */}
         <a href="#home" className="flex items-center gap-2.5 group cursor-pointer">

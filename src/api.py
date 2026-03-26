@@ -110,9 +110,10 @@ async def predict(file: UploadFile = File(...), confidence: float = 0.5):
             import shutil
             shutil.copy2(temp_path, temp_google_path)
             
-            # Run inference
-            result = inference_engine.predict(sample_id=sample_id, lat=lat, lon=lon)
-            
+            # Run inference with "UPLOAD" type to use standard panel size heuristic
+            result = inference_engine.predict(sample_id=sample_id, lat=lat, lon=lon, image_type="UPLOAD")
+            panels = result.get("panels_in_buffer", [])
+
             # Load the image for overlay generation
             img_bgr = cv2.imread(str(temp_google_path))
             
@@ -126,7 +127,7 @@ async def predict(file: UploadFile = File(...), confidence: float = 0.5):
             
             # Transform result to match expected API format
             detections = []
-            for panel in result.get("panels_in_buffer", []):
+            for panel in panels:
                 bbox = panel["bbox_center"]
                 detections.append({
                     "x1": bbox[0] - bbox[2]/2,
@@ -149,7 +150,10 @@ async def predict(file: UploadFile = File(...), confidence: float = 0.5):
                 "detection_list": detections,
                 "confidence_threshold": confidence,
                 "has_solar": result["has_solar"],
+                "confidence": result["confidence"],
                 "pv_area_sqm_est": result["pv_area_sqm_est"],
+                "estimated_capacity_kw": round(float(result["pv_area_sqm_est"]) * 0.2, 2),
+                "estimated_annual_production_kwh": round(float(result["pv_area_sqm_est"]) * 0.2 * 1460, 2),
                 "panels_in_buffer": result["panels_in_buffer"],
                 "qc_status": result["qc_status"],
                 "buffer_radius_sqft": result["buffer_radius_sqft"],
@@ -159,7 +163,10 @@ async def predict(file: UploadFile = File(...), confidence: float = 0.5):
                 "longitude": lon,
                 "best_panel_id": result["best_panel_id"],
                 "bbox_or_mask": result["bbox_or_mask"],
-                "image_metadata": result["image_metadata"]
+                "image_metadata": result["image_metadata"],
+                "financial_insights": result["financial_insights"],
+                "environmental_impact": result["environmental_impact"],
+                "technical_specs": result["technical_specs"]
             }
             
         finally:
@@ -215,8 +222,8 @@ async def predict_by_coords(lat: float, lng: float, confidence: float = 0.5):
         img_path = google_img_dir / f"{sample_id}.jpg"
         satellite_image.save(img_path, format="JPEG")
         
-        # Run inference
-        result = inference_engine.predict(sample_id=sample_id, lat=lat, lon=lng)
+        # Run inference with "SATELLITE" type to use pixel-to-meter conversion
+        result = inference_engine.predict(sample_id=sample_id, lat=lat, lon=lng, image_type="SATELLITE")
         
         # Load the image for overlay generation
         img_bgr = cv2.imread(str(img_path))
@@ -254,7 +261,10 @@ async def predict_by_coords(lat: float, lng: float, confidence: float = 0.5):
             "detection_list": detections,
             "confidence_threshold": confidence,
             "has_solar": result["has_solar"],
+            "confidence": result["confidence"],
             "pv_area_sqm_est": result["pv_area_sqm_est"],
+            "estimated_capacity_kw": round(float(result["pv_area_sqm_est"]) * 0.2, 2),
+            "estimated_annual_production_kwh": round(float(result["pv_area_sqm_est"]) * 0.2 * 1460, 2),
             "panels_in_buffer": result["panels_in_buffer"],
             "qc_status": result["qc_status"],
             "buffer_radius_sqft": result["buffer_radius_sqft"],
@@ -264,7 +274,10 @@ async def predict_by_coords(lat: float, lng: float, confidence: float = 0.5):
             "latitude": lat,
             "longitude": lng,
             "best_panel_id": result["best_panel_id"],
-            "bbox_or_mask": result["bbox_or_mask"]
+            "bbox_or_mask": result["bbox_or_mask"],
+            "financial_insights": result["financial_insights"],
+            "environmental_impact": result["environmental_impact"],
+            "technical_specs": result["technical_specs"]
         }
         
         # Clean up the temporary image

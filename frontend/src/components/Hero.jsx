@@ -69,37 +69,23 @@ const Hero = () => {
           gap: '14px',
           flexWrap: 'wrap',
         }}>
-          <button style={{
-            fontFamily: "'Inter', sans-serif",
-            color: 'white',
-            fontSize: '15px',
-            fontWeight: 600,
-            padding: '13px 30px',
-            borderRadius: '9999px',
-            border: 'none',
-            cursor: 'pointer',
-            background: 'hsl(0 0% 8%)',
-            letterSpacing: '-0.01em',
-          }}>
+          <button 
+            onClick={() => document.getElementById('analyze')?.scrollIntoView({ behavior: 'smooth' })}
+            style={{
+              fontFamily: "'Inter', sans-serif",
+              color: 'white',
+              fontSize: '15px',
+              fontWeight: 600,
+              padding: '13px 30px',
+              borderRadius: '9999px',
+              border: 'none',
+              cursor: 'pointer',
+              background: 'hsl(0 0% 8%)',
+              letterSpacing: '-0.01em',
+            }}
+          >
             → Start Analyzing
-          </button>
-          <button style={{
-            fontFamily: "'Inter', sans-serif",
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-            background: 'white',
-            border: '1px solid hsl(0 0% 82%)',
-            borderRadius: '9999px',
-            padding: '12px 22px',
-            fontSize: '14px',
-            fontWeight: 500,
-            color: 'hsl(0 0% 8%)',
-            cursor: 'pointer',
-            letterSpacing: '-0.01em',
-          }}>
-            Watch Demo
-          </button>
+          </button> 
         </div>
 
       </div>

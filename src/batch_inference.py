@@ -116,6 +116,8 @@ def build_final_predictions_json():
             "has_solar": has_solar_bool,
             "confidence": round(confidence, 4),      # your model's confidence, currently 0.0
             "pv_area_sqm_est": round(pv_area_m2, 2), # estimated panel area in m², currently 0.0
+            "estimated_capacity_kw": round(pv_area_m2 * 0.2, 2),
+            "estimated_annual_production_kwh": round(pv_area_m2 * 0.2 * 1460.0, 2),
             "buffer_radius_sqft": DEFAULT_BUFFER_RADIUS_SQFT,
             "qc_status": qc_status,
             "bbox_or_mask": bbox_or_mask,
@@ -154,6 +156,8 @@ def export_rooftop_json():
             "hassolar": bool(rec["hassolar"]),       # ✅ Matches inference.py
             "confidence": float(rec["confidence"]),
             "pv_area_sqm_est": float(rec["pv_area_sqm_est"]),
+            "estimated_capacity_kw": round(float(rec["pv_area_sqm_est"]) * 0.2, 2),
+            "estimated_annual_production_kwh": round(float(rec["pv_area_sqm_est"]) * 0.2 * 1460.0, 2),
             "buffer_radius_sqft": int(rec["buffer_radius_sqft"]),
             "qc_status": str(rec["qc_status"]),
             "bbox_or_mask": rec.get("bbox_or_mask", ""),
@@ -246,78 +250,75 @@ def create_overlay_image(
     panels_in_buffer = record.get("panels_in_buffer", [])
     best_panel_id = record.get("best_panel_id", -1)
 
-    # Calculate total area and average confidence from all panels
-    total_area = sum(panel.get("inside_area_sqm", 0.0) for panel in panels_in_buffer)
+    # Get overall area and source
+    total_area = record.get("pv_area_sqm_est", 0.0)
+    source = record.get("image_metadata", {}).get("source", "GOOGLE_STATIC_MAPS")
+    is_upload = (source == "USER_UPLOAD")
+    
     if panels_in_buffer:
         avg_confidence = sum(panel.get("conf", 0.0) for panel in panels_in_buffer) / len(panels_in_buffer)
     else:
         avg_confidence = record.get("confidence", 0.0)
-        total_area = record.get("pv_area_sqm_est", 0.0)
+        # total_area already set from record above
+    
+    # Use standard panel area for labels if it's an upload
+    STANDARD_PANEL_AREA = 1.8 # Sync with inference.py
 
     num_panels = len(panels_in_buffer)
 
-    fig, ax = plt.subplots(figsize=(8, 8), dpi=100)
-    ax.imshow(img_rgb)
+    # Set modern font style
+    plt.rcParams['font.family'] = 'sans-serif'
+    plt.rcParams['font.sans-serif'] = ['Inter', 'Roboto', 'Arial', 'DejaVu Sans']
 
-    # Title: "Solar Panel Detection - PANELS DETECTED" when panels found
+    # Create a panoramic 3-panel figure: [Sidebar | Hero Image | Sidebar]
+    # Re-balancing to give side panels more horizontal space (3:6.5:3 ratio)
+    fig = plt.figure(figsize=(32, 18), dpi=100, facecolor='#000000')
+    gs = fig.add_gridspec(1, 3, width_ratios=[3, 6.5, 3], wspace=0.1)
+    
+    ax_legend = fig.add_subplot(gs[0])
+    ax_main = fig.add_subplot(gs[1])
+    ax_info = fig.add_subplot(gs[2])
+
+    for ax_item in [ax_legend, ax_main, ax_info]:
+        ax_item.set_facecolor('#000000')
+        ax_item.axis("off")
+
+    # --- CENTER PANEL: IMAGE & DETECTION ---
+    ax_main.imshow(img_rgb)
+    
     if num_panels > 0:
         title_text = "Solar Panel Detection - PANELS DETECTED"
-        title_color = "darkblue"
+        title_color = "#10b981" # Emerald 500
     else:
         title_text = "Solar Panel Detection - NOT_VERIFIABLE"
-        title_color = "orange"
+        title_color = "#f59e0b" # Amber 500
     
-    ax.set_title(
+    ax_main.set_title(
         title_text,
-        fontsize=14,
-        fontweight="bold",
+        fontsize=24,
+        fontweight="black",
         color=title_color,
-        pad=10,
+        pad=40,
     )
 
-    # Legend (matching reference image format)
-    legend_text = (
-        "Lime = Best Panel (Highest Overlap)\n"
-        "Cyan = Other Panels\n"
-        "Area = Intersection with Buffer\n"
-        "Confidence = Model Detection Score"
-    )
-    ax.text(
-        10,
-        30,
-        legend_text,
-        fontsize=9,
-        color="white",
-        fontweight="bold",
-        bbox=dict(
-            boxstyle="round",
-            facecolor="darkblue",
-            alpha=0.85,
-            edgecolor="cyan",
-            linewidth=2,
-        ),
-    )
-
-    # Draw all panels
+    # Draw all panels on main axis
     for panel in panels_in_buffer:
         panel_id = panel["panel_id"]
         conf = panel["conf"]
-        inside_area = panel["inside_area_sqm"]
+        inside_area = panel.get("full_area_sqm", panel.get("inside_area_sqm", 0.0))
         x_c, y_c, w_n, h_n = panel["bbox_center"]
 
-        # Convert normalized center format to pixel coordinates
         x1 = (x_c - w_n / 2) * w
         y1 = (y_c - h_n / 2) * h
         bw_px = w_n * w
         bh_px = h_n * h
 
-        # Highlight best panel in lime green, others in cyan
         if panel_id == best_panel_id:
             edge_color = "lime"
-            linewidth = 3
+            linewidth = 2.5
         else:
             edge_color = "cyan"
-            linewidth = 2
+            linewidth = 1.5
 
         rect = Rectangle(
             (x1, y1),
@@ -327,84 +328,95 @@ def create_overlay_image(
             edgecolor=edge_color,
             facecolor="none",
         )
-        ax.add_patch(rect)
+        ax_main.add_patch(rect)
 
-        # Label with Panel ID, Confidence, and Area
-        label_text = f"Panel {panel_id} | Conf: {conf:.3f} | Area: {inside_area:.1f} m²"
-        ax.text(
-            x1 + 4,
-            y1 - 8,
+        display_area = STANDARD_PANEL_AREA if is_upload else inside_area
+        label_text = f"P{panel_id} | {conf:.2f} | {display_area:.1f}m²"
+        ax_main.text(
+            x1,
+            y1 - 15,
             label_text,
-            fontsize=9,
-            color=edge_color,
-            fontweight="bold",
-            bbox=dict(boxstyle="round", facecolor="black", alpha=0.7),
+            fontsize=16,
+            color="white",
+            fontweight="black",
+            bbox=dict(boxstyle="round,pad=0.5", facecolor=edge_color, alpha=1.0, edgecolor="none"),
         )
 
-    # Information box (matching reference image format)
-    lat_dir = "N" if lat >= 0 else "S"
-    lon_dir = "E" if lon >= 0 else "W"
-    has_solar_text = "YES" if hassolar else "NO"
-    
-    meta = (
-        f"Sample ID: {sample_id}\n"
-        f"Lat: {abs(lat):.4f}°{lat_dir} | Lon: {abs(lon):.4f}°{lon_dir}\n"
-        f"has_solar: {has_solar_text}\n"
-        f"Total Area: {total_area:.1f} m²\n"
-        f"Confidence: {avg_confidence:.4f}\n"
-        f"Panels Found: {num_panels}\n"
-        f"QC Status: {qc_status}\n"
-        f"Buffer: {buffer_radius_sqft} sqft"
+    # --- LEFT PANEL: LEGEND & SYSTEM ---
+    legend_text = (
+        "VISUAL LEGEND\n"
+        "───────────────\n"
+        "● Lime: Prime Target\n"
+        "● Cyan: Verified Panel\n\n"
+        "DETECTION SPECS\n"
+        "───────────────\n"
+        "Engine: YOLOv8 Solar\n"
+        "Type: " + ("PHOTO" if is_upload else "SATELLITE") + "\n"
+        "Zoom: " + str(record.get("image_metadata", {}).get("zoom", 19)) + "x\n"
+        "Buffer: " + str(buffer_radius_sqft) + " sqft"
     )
-    
-    box_color = "darkgreen" if hassolar else "darkorange"
-    edge_color = "lime" if hassolar else "yellow"
-    
-    ax.text(
-        10,
-        h - 10,
-        meta,
-        fontsize=9,
+    ax_legend.text(
+        0.5, 0.5, 
+        legend_text,
+        fontsize=18,
         color="white",
         fontweight="bold",
-        verticalalignment="top",
-        bbox=dict(
-            boxstyle="round",
-            facecolor=box_color,
-            alpha=0.85,
-            edgecolor=edge_color,
-            linewidth=2,
-        ),
+        linespacing=2.8,
+        verticalalignment="center",
+        horizontalalignment="center",
+        bbox=dict(boxstyle="round,pad=3.5", facecolor="#1e293b", alpha=0.6, edgecolor="#334155", linewidth=3.5)
     )
 
-    ax.axis("off")
-    plt.tight_layout()
+    # --- RIGHT PANEL: PERFORMANCE METRICS ---
+    lat_dir = "N" if lat >= 0 else "S"
+    lon_dir = "E" if lon >= 0 else "W"
+    has_solar_text = "VERIFIED" if hassolar else "NONE"
+    
+    meta_text = (
+        "CORE INTELLIGENCE\n"
+        "──────────────────\n"
+        f"STATUS: {has_solar_text}\n"
+        f"COUNT: {num_panels} Units\n"
+        f"CONF: {avg_confidence*100:.1f}%\n"
+        f"QC: {qc_status}\n\n"
+        "ENERGY ESTIMATES\n"
+        "──────────────────\n"
+        f"AREA: {total_area:.1f} m²\n"
+        f"CAPACITY: {total_area * 0.2:.2f} kW\n"
+        f"YIELD: {total_area * 0.2 * 1460:.0f} kWh/y\n\n"
+        "LOCATION DATA\n"
+        "──────────────────\n"
+        f"LAT: {abs(lat):.4f}°{lat_dir}\n"
+        f"LON: {abs(lon):.4f}°{lon_dir}"
+    )
+    
+    ax_info.text(
+        0.5, 0.5, 
+        meta_text,
+        fontsize=18,
+        color="white",
+        fontweight="bold",
+        linespacing=2.8,
+        verticalalignment="center",
+        horizontalalignment="center",
+        bbox=dict(boxstyle="round,pad=3.5", facecolor="#1e293b", alpha=0.6, edgecolor="#334155", linewidth=3.5)
+    )
+
+    plt.subplots_adjust(left=0.02, right=0.98, top=0.90, bottom=0.05)
     overlay_path.parent.mkdir(parents=True, exist_ok=True)
-    plt.savefig(overlay_path, dpi=100, bbox_inches="tight")
+    plt.savefig(overlay_path, dpi=100, bbox_inches="tight", facecolor='#000000')
     plt.close(fig)
 
 
 def run_batch() -> None:
     """
-    Batch inference with buffer logic rules:
-    
-    BUFFER LOGIC RULES:
-    ===================
-    1. Run inference with 1200 sqft buffer first
-    2. Check all panels inside the 1200 sqft buffer area
-    3. Calculate panel areas (including partial overlaps)
-    4. Select panel with maximum area inside buffer
-    5. If has_solar=False after 1200 sqft check:
-       - Run again with 2400 sqft buffer
-       - Apply same rules: check panels, calculate areas, select max
-    6. If 2400 sqft finds solar, use that record
-    7. Otherwise, keep the 1200 sqft "no solar" record
+    Batch inference (no buffer constraints):
     
     Processing steps:
     1. Load data/raw/EI_train_data.csv.
     2. For each row, load matching Google tile from
        data/processed/google_images_all/{sample_id}.jpg.
-    3. Run SolarPanelInference.predict() to apply YOLO + buffer logic.
+    3. Run SolarPanelInference.predict() to detect all panels.
     4. Save overlay image and append record.
     5. Write outputs/predictions.json and outputs/predictions.csv.
     """
@@ -438,14 +450,13 @@ def run_batch() -> None:
             if not img_path.exists():
                 raise FileNotFoundError(f"Image not found: {img_path}")
 
-            # Run YOLO inference + buffer logic
-            # This follows the buffer rules:
-            # 1. Run with 1200 sqft buffer first
-            # 2. Check panels inside 1200 sqft buffer area
-            # 3. If has_solar=False, run again with 2400 sqft buffer
-            # 4. Check panels inside 2400 sqft buffer area
-            # 5. If 2400 sqft finds solar, use that record; otherwise keep 1200 sqft "no solar" record
-            rec = inf.predict(sample_id=sample_id, lat=lat, lon=lon)
+            # Run YOLO inference (no buffer constraints - all panels counted)
+            rec = inf.predict(sample_id=sample_id, lat=lat, lon=lon, image_type="SATELLITE")
+
+            # Add capacity and energy estimates based on area (Assume 20% efficiency, 1460 sun hours)
+            area = float(rec.get("pv_area_sqm_est", 0.0))
+            rec["estimated_capacity_kw"] = round(area * 0.2, 2)
+            rec["estimated_annual_production_kwh"] = round(area * 0.2 * 1460.0, 2)
 
             # Load the same Google image tile your inference uses
             img_bgr = load_image_for_sample(sample_id)
@@ -479,7 +490,9 @@ def run_batch() -> None:
                 "has_solar": False,
                 "confidence": 0.0,
                 "pv_area_sqm_est": 0.0,
-                "buffer_radius_sqft": 1200,
+                "estimated_capacity_kw": 0.0,
+                "estimated_annual_production_kwh": 0.0,
+                "buffer_radius_sqft": 0,
                 "panels_in_buffer": [],
                 "best_panel_id": -1,
                 "qc_status": "NOT_VERIFIABLE",
@@ -508,7 +521,9 @@ def run_batch() -> None:
                     "has_solar": False,
                     "confidence": 0.0,
                     "pv_area_sqm_est": 0.0,
-                    "buffer_radius_sqft": 1200,
+                    "estimated_capacity_kw": 0.0,
+                    "estimated_annual_production_kwh": 0.0,
+                    "buffer_radius_sqft": 0,
                     "panels_in_buffer": [],
                     "best_panel_id": -1,
                     "qc_status": "NOT_VERIFIABLE",

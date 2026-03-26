@@ -39,8 +39,8 @@ const HowItWorks = () => {
       }}>
         <p style={{
           fontFamily: "'JetBrains Mono', monospace",
-          fontSize: '0.8rem',
-          fontWeight: 500,
+          fontSize: '1.15rem',
+          fontWeight: 600,
           letterSpacing: '0.15em',
           textTransform: 'uppercase',
           color: 'hsl(152 60% 32%)',
@@ -91,13 +91,26 @@ const TextParallaxContent = ({ imgUrl, subheading, heading, children }) => {
 /* ─── Sticky + Parallax Image ─── */
 const StickyImage = ({ imgUrl }) => {
   const targetRef = useRef(null);
-  const { scrollYProgress } = useScroll({
+  
+  const { scrollYProgress: exitProgress } = useScroll({
     target: targetRef,
     offset: ['end end', 'end start'],
   });
 
-  const scale = useTransform(scrollYProgress, [0, 1], [1, 0.85]);
-  const opacity = useTransform(scrollYProgress, [0, 1], [1, 0]);
+  const { scrollYProgress: entryProgress } = useScroll({
+    target: targetRef,
+    offset: ['start end', 'start start'],
+  });
+
+  const scale = useTransform(() => {
+    const entry = entryProgress.get();
+    const exit = exitProgress.get();
+    if (exit > 0) return 1 - (exit * 0.15); // Exiting: 1 down to 0.85
+    return 0.05 + (entry * 0.95); // Entering: from incredibly tiny (0.05) up to 1 for maximum dramatic effect
+  });
+
+  const mainOpacity = useTransform(entryProgress, [0, 0.4], [0, 1]); // Fade in
+  const overlayOpacity = useTransform(exitProgress, [0, 1], [1, 0]); // Fade out overlay on exit
 
   return (
     <motion.div
@@ -110,7 +123,9 @@ const StickyImage = ({ imgUrl }) => {
         position: 'sticky',
         borderRadius: 16,
         overflow: 'hidden',
+        transformOrigin: 'center center',
         scale,
+        opacity: mainOpacity,
       }}
       ref={targetRef}
     >
@@ -119,7 +134,7 @@ const StickyImage = ({ imgUrl }) => {
           position: 'absolute',
           inset: 0,
           background: 'linear-gradient(to bottom, rgba(0,0,0,0.35), rgba(0,0,0,0.55))',
-          opacity,
+          opacity: overlayOpacity,
         }}
       />
     </motion.div>

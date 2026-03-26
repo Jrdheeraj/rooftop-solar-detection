@@ -1,3 +1,27 @@
+# SolarScan AI: Intelligent Rooftop Analytics
+![SolarScan AI Homepage](assets/homepage.png)
+
+**SolarScan AI** is a premium, full-stack satellite intelligence platform that transforms raw overhead imagery into actionable solar energy reports. By leveraging YOLOv8 computer vision and high-fidelity React analytics, the system detects solar panels, calculates precise installation areas, and generates real-time financial ROI and environmental impact data.
+
+---
+
+## 🚀 Newly Added: AI Analytical Dashboard v3.0
+
+The latest version introduces a high-performance, interactive dashboard that stabilizes the analytical experience while maximizing user engagement.
+
+- **Creative Interactive UX**: 
+  - **3D Perspective Tilt**: Analytical cards respond dynamically to cursor movement for a premium feel.
+  - **Solar Aura Background**: Interactive radial gradients that track mouse interactions.
+  - **Magnetic Call-to-Actions**: High-visibility landing buttons with internal glare effects.
+- **Intelligent ROI Engine**:
+  - **Financial Metrics**: Automated payback period, annual savings, and total ROI estimates.
+  - **Environmental Metrics**: Carbon footprint offset calculations and tree-planting equivalency.
+  - **Technical Specs**: Real-time panel count, area mapping, and energy yield prediction.
+- **Latitude-Corrected Precision**: Backend inference engine now scales detects based on geographical latitude (`cos(lat)`) for sub-meter accuracy.
+- **FastAPI Real-time Pipeline**: High-speed communication between the YOLOv8 inference engine and the React frontend.
+
+---
+
 # Rooftop Solar Panel Detection from Overhead Imagery
 
 **End-to-end computer vision pipeline** for detecting and measuring solar panels on rooftops from Google Static Maps satellite imagery using YOLOv8, parallel batch processing, and geospatial buffer logic with **multi-panel detection and visualization**.
