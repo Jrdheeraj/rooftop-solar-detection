@@ -48,7 +48,14 @@ function App() {
           // Final fallback
           const lat = parseFloat(data.data?.lat) || 0;
           const lng = parseFloat(data.data?.lng) || 0;
-          overlayImage = `https://maps.googleapis.com/maps/api/staticmap?center=${lat},${lng}&zoom=19&size=400x400&maptype=satellite&key=YOUR_API_KEY`;
+          const mapsApiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
+          if (mapsApiKey && mapsApiKey !== 'YOUR_API_KEY') {
+            overlayImage = `https://maps.googleapis.com/maps/api/staticmap?center=${lat},${lng}&zoom=19&size=400x400&maptype=satellite&key=${mapsApiKey}`;
+          } else {
+            // No API key available for fallback map
+            overlayImage = null;
+          }
+
         }
 
         // Transform API response to match the expected JSON format

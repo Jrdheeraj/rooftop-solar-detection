@@ -621,7 +621,7 @@ For issues or questions, open a GitHub issue or reach out to the maintainer.
 
 ---
 
-**Last Updated**: 2025-12-14  
-**Docker Image**: `dheerajjk/rooftop-solar-cpu:latest`  
-**Docker Hub**: https://hub.docker.com/r/dheerajjk/rooftop-solar-cpu  
-**Training Colab**: https://colab.research.google.com/drive/1Cl9KowI1deMolhE3wjfg165TRbDsuX4-?usp=sharing
+
+
+**Last Updated**: 2026-03-26  
+

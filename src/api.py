@@ -285,11 +285,8 @@ async def predict_by_coords(lat: float, lng: float, confidence: float = 0.5):
             img_path.unlink()
         # Keep overlay file for potential debugging
         
-        # Add the satellite image URL to the response
-        satellite_url = f"https://maps.googleapis.com/maps/api/staticmap?center={lat},{lng}&zoom=19&size=400x400&maptype=satellite&key={maps_client.config.api_key}"
-        api_result["satellite_image_url"] = satellite_url
-        
         return api_result
+
         
     except Exception as e:
         return {
