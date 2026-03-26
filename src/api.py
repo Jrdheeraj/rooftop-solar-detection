@@ -175,7 +175,8 @@ async def predict(file: UploadFile = File(...), confidence: float = 0.5):
                 os.unlink(temp_path)
             if 'temp_google_path' in locals() and os.path.exists(temp_google_path):
                 os.unlink(temp_google_path)
-            # Keep overlay file for potential debugging
+            if 'overlay_path' in locals() and os.path.exists(overlay_path):
+                os.unlink(overlay_path)
         
         return api_result
     
@@ -283,9 +284,12 @@ async def predict_by_coords(lat: float, lng: float, confidence: float = 0.5):
         # Clean up the temporary image
         if img_path.exists():
             img_path.unlink()
-        # Keep overlay file for potential debugging
+        # Clean up the overlay image
+        if overlay_path.exists():
+            overlay_path.unlink()
         
         return api_result
+
 
         
     except Exception as e:
