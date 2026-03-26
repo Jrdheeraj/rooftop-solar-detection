@@ -1,6 +1,7 @@
 # src/api.py
 
 from fastapi import FastAPI, File, UploadFile, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, FileResponse
 from pathlib import Path
 import cv2
@@ -22,6 +23,17 @@ app = FastAPI(
     title="Solar Panel Detection API",
     description="Real-time solar panel detection using YOLOv8",
     version="1.0.0"
+)
+
+# Add CORS middleware immediately after app initialization
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "https://rooftop-solar-detection.vercel.app"
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 # Initialize model and inference engine
