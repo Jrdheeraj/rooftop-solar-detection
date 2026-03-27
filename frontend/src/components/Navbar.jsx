@@ -7,8 +7,8 @@ const Navbar = () => {
 
   return (
     <>
-      <nav className="absolute top-0 left-0 right-0 z-[100] bg-transparent">
-        <div className="max-w-7xl mx-auto px-6 md:px-8 h-20 flex items-center justify-between">
+      <nav className="absolute top-0 left-0 right-0 z-[100] bg-white md:bg-transparent border-b border-gray-100 md:border-none">
+        <div className="max-w-7xl mx-auto px-5 md:px-8 h-16 md:h-20 flex items-center justify-between">
           {/* LOGO */}
           <a href="#home" className="flex items-center gap-2.5 group cursor-pointer">
             <div className="w-9 h-9 bg-black rounded-xl flex items-center justify-center text-white shadow-lg group-hover:scale-110 transition-transform duration-300">

@@ -102,15 +102,20 @@ const StickyImage = ({ imgUrl }) => {
     offset: ['start end', 'start start'],
   });
 
-  const scale = useTransform(() => {
-    const entry = entryProgress.get();
-    const exit = exitProgress.get();
-    if (exit > 0) return 1 - (exit * 0.15); // Exiting: 1 down to 0.85
-    return 0.05 + (entry * 0.95); // Entering: from incredibly tiny (0.05) up to 1 for maximum dramatic effect
-  });
+  const mainOpacity = useTransform(entryProgress, [0, 0.4], [0, 1]);
+  const scaleFromEntry = useTransform(entryProgress, [0, 1], [0.05, 1]);
+  const scaleToExit = useTransform(exitProgress, [0, 1], [1, 0.85]);
+  
+  // Consolidate scale to avoid custom function callback that recalculates every frame
+  const scale = useTransform(
+    [entryProgress, exitProgress],
+    ([entry, exit]) => {
+      if (exit > 0) return 1 - (exit * 0.15);
+      return 0.05 + (entry * 0.95);
+    }
+  );
 
-  const mainOpacity = useTransform(entryProgress, [0, 0.4], [0, 1]); // Fade in
-  const overlayOpacity = useTransform(exitProgress, [0, 1], [1, 0]); // Fade out overlay on exit
+  const overlayOpacity = useTransform(exitProgress, [0, 1], [1, 0]);
 
   return (
     <motion.div
@@ -126,6 +131,7 @@ const StickyImage = ({ imgUrl }) => {
         transformOrigin: 'center center',
         scale,
         opacity: mainOpacity,
+        willChange: 'transform, opacity',
       }}
       ref={targetRef}
     >
@@ -163,6 +169,7 @@ const OverlayContent = ({ subheading, heading }) => {
         alignItems: 'center',
         justifyContent: 'center',
         zIndex: 10,
+        willChange: 'transform, opacity',
       }}
     >
       <motion.p

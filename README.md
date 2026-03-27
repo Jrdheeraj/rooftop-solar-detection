@@ -1,7 +1,7 @@
 # SolarScan AI: Intelligent Rooftop Analytics
-![SolarScan AI Homepage](assets/homepage.png)
+[![SolarScan AI Homepage](assets/homepage.png)](https://rooftop-solar-detection.vercel.app/)
 
-**SolarScan AI** is a premium, full-stack satellite intelligence platform that transforms raw overhead imagery into actionable solar energy reports. By leveraging YOLOv8 computer vision and high-fidelity React analytics, the system detects solar panels, calculates precise installation areas, and generates real-time financial ROI and environmental impact data.
+**SolarScan AI** ([Live Demo](https://rooftop-solar-detection.vercel.app/)) is a premium, full-stack satellite intelligence platform that transforms raw overhead imagery into actionable solar energy reports. By leveraging YOLOv8 computer vision and high-fidelity React analytics, the system detects solar panels, calculates precise installation areas, and generates real-time financial ROI and environmental impact data.
 
 ---
 

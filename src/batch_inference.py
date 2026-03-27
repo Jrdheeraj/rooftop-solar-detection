@@ -244,24 +244,31 @@ def render_panel_detections(
         p_id = panel["panel_id"]
         conf = panel["conf"]
         area = panel.get("full_area_sqm", 1.8)
-        x_c, y_c, w_n, h_n = panel["bbox_center"]
-
-        x1 = int((x_c - w_n / 2) * w)
-        y1 = int((y_c - h_n / 2) * h)
-        x2 = int((x_c + w_n / 2) * w)
-        y2 = int((y_c + h_n / 2) * h)
+        
+        if "bbox_rect" in panel:
+            x1_n, y1_n, x2_n, y2_n = panel["bbox_rect"]
+            x1 = int(x1_n * w)
+            y1 = int(y1_n * h)
+            x2 = int(x2_n * w)
+            y2 = int(y2_n * h)
+        else:
+            x_c, y_c, w_n, h_n = panel["bbox_center"]
+            x1 = int((x_c - w_n / 2) * w)
+            y1 = int((y_c - h_n / 2) * h)
+            x2 = int((x_c + w_n / 2) * w)
+            y2 = int((y_c + h_n / 2) * h)
 
         color = (0, 255, 0) if p_id == best_panel_id else (255, 255, 0) # Lime vs Cyan
         thickness = 2
         cv2.rectangle(canvas, (x1, y1), (x2, y2), color, thickness)
 
-        # Label: P1 | 0.67 | 1.8m2
-        label = f"P{p_id} | {conf:.2f} | {area:.1f}m2"
-        f_scale = max(0.35, min(h / 900, 0.55))
+        # Label: P1 (Keep it small to prevent obscuring adjacent panels)
+        label = f"P{p_id}"
+        f_scale = max(0.35, min(h / 1200, 0.45))
         (tw, th), base = cv2.getTextSize(label, FONT, f_scale, 1)
-        lx, ly = x1, max(y1 - 5, th + 10)
-        cv2.rectangle(canvas, (lx, ly - th - 10), (lx + tw + 10, ly), color, -1)
-        cv2.putText(canvas, label, (lx + 5, ly - 7), FONT, f_scale, (0, 0, 0), 1, cv2.LINE_AA)
+        lx, ly = x1, max(y1 - 3, th + 6)
+        cv2.rectangle(canvas, (lx, ly - th - 6), (lx + tw + 6, ly), color, -1)
+        cv2.putText(canvas, label, (lx + 3, ly - 3), FONT, f_scale, (0, 0, 0), 1, cv2.LINE_AA)
 
     if return_base64:
         _, buf = cv2.imencode('.jpg', canvas, [cv2.IMWRITE_JPEG_QUALITY, 90])

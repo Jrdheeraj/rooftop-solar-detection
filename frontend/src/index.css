@@ -136,6 +136,9 @@
   .stat-dot:nth-child(3) { animation-delay: 0.6s; }
 
   video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; z-index: 0; }
+  @media (max-width: 768px) {
+    video { object-position: center bottom; }
+  }
   .video-overlay { 
     position: absolute; 
     inset: 0; 

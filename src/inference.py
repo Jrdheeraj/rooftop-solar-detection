@@ -199,8 +199,8 @@ class SolarPanelInference:
         effective_conf_threshold = self.conf_threshold if conf_threshold is None else float(conf_threshold)
         effective_buffer_sqft = int(buffer_sqft) if buffer_sqft is not None else (BUFFER_1200 if image_type == "SATELLITE" else 0)
 
-        # Run YOLO inference
-        results = self.model(img, verbose=False, conf=effective_conf_threshold)[0]
+        # Run YOLO inference with NMS iou=0.70 to prevent duplicate overlapping panel boxes from overly suppressing neighbors
+        results = self.model(img, verbose=False, conf=effective_conf_threshold, iou=0.70)[0]
         boxes = results.boxes
 
         panels: List[Dict[str, Any]] = []
@@ -212,12 +212,15 @@ class SolarPanelInference:
         if boxes is not None and len(boxes) > 0:
             for box in boxes:
                 conf = float(box.conf.item())
-                xywhn = box.xywhn[0].cpu().numpy()
-                x_c, y_c, w_n, h_n = map(float, xywhn)
+                xyxyn = box.xyxyn[0].cpu().numpy()
+                x1_n, y1_n, x2_n, y2_n = map(float, xyxyn)
+                w_n = x2_n - x1_n
+                h_n = y2_n - y1_n
+                x_c = x1_n + w_n / 2
+                y_c = y1_n + h_n / 2
 
                 # Convert to top-left format for area calculation
-                x1, y1 = x_c - w_n / 2, y_c - h_n / 2
-                bbox_norm = (x1, y1, w_n, h_n)
+                bbox_norm = (x1_n, y1_n, w_n, h_n)
 
                 raw_bbox_area_px = float((w_n * img_w) * (h_n * img_h))
 
@@ -247,6 +250,7 @@ class SolarPanelInference:
                         "inside_area_sqm": round(float(inside_area), 2),
                         "overlap_ratio": round(float(overlap_ratio), 4),
                         "bbox_center": (float(x_c), float(y_c), float(w_n), float(h_n)),
+                        "bbox_rect": (float(x1_n), float(y1_n), float(x2_n), float(y2_n)),
                         **({"raw_bbox_area_px": round(raw_bbox_area_px, 4)} if image_type == "UPLOAD" else {}),
                     }
                 )

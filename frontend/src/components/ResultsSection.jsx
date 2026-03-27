@@ -90,31 +90,168 @@ const ResultsSection = ({ data, onReset }) => {
   const handleDownloadReport = () => {
     const doc = new jsPDF();
     const primaryColor = '#00c96a';
-    doc.setFontSize(22);
-    doc.setTextColor(primaryColor);
-    doc.text('SolarScan AI - Intelligence Report', 20, 20);
-    doc.setFontSize(10);
-    doc.setTextColor(150, 150, 150);
-    doc.text(`Generated: ${new Date().toLocaleString()}`, 20, 28);
-    doc.setDrawColor(230, 230, 230);
-    doc.line(20, 35, 190, 35);
-    doc.setTextColor(0, 0, 0);
-    doc.setFontSize(14);
-    doc.text('Analysis Metrics:', 20, 50);
-    const stats = [
-      ['Total Panels', `${result.panels.length} Units`],
-      ['Total PV Area', `${result.total_area.toFixed(1)} m²`],
-      ['Peak Capacity', `${result.estimated_capacity_kw.toFixed(2)} kW`],
-      ['Annual Production', `${Math.round(result.estimated_annual_production_kwh).toLocaleString()} kWh/y`],
-      ['Model Confidence', `${(result.confidence * 100).toFixed(1)}%`],
-      ['QC Status', result.qc_status]
-    ];
-    stats.forEach((stat, i) => {
+    const darkColor = '#1a1a1a';
+    const lightText = '#666666';
+    
+    // Config
+    const margin = 20;
+    const pageWidth = 210;
+    const contentWidth = pageWidth - margin * 2;
+    let yPos = 20;
+
+    // Helper: Add new page if needed
+    const checkPageBreak = (neededSpace) => {
+      if (yPos + neededSpace > 280) {
+        doc.addPage();
+        yPos = 20;
+        return true;
+      }
+      return false;
+    };
+
+    // Helper: Title
+    const addTitle = (title) => {
+      checkPageBreak(15);
+      doc.setTextColor(primaryColor);
+      doc.setFontSize(16);
+      doc.setFont('helvetica', 'bold');
+      doc.text(title, margin, yPos);
+      doc.setDrawColor(0, 201, 106);
+      doc.setLineWidth(0.5);
+      doc.line(margin, yPos + 3, pageWidth - margin, yPos + 3);
+      yPos += 12;
+    };
+
+    // Helper: Row data (Grid layout)
+    const addGridRow = (label, value) => {
+      checkPageBreak(8);
+      doc.setTextColor(darkColor);
       doc.setFontSize(11);
-      doc.text(stat[0], 25, 65 + (i * 12));
-      doc.text(stat[1], 100, 65 + (i * 12));
+      doc.setFont('helvetica', 'bold');
+      doc.text(label, margin, yPos);
+      doc.setFont('helvetica', 'normal');
+      doc.text(String(value), pageWidth - margin, yPos, { align: 'right' });
+      yPos += 7;
+    };
+
+    // Helper: Paragraph text
+    const addParagraph = (text) => {
+      doc.setFontSize(10);
+      doc.setTextColor(lightText);
+      doc.setFont('helvetica', 'normal');
+      const lines = doc.splitTextToSize(text, contentWidth);
+      checkPageBreak(lines.length * 5 + 5);
+      doc.text(lines, margin, yPos);
+      yPos += (lines.length * 5) + 6;
+    };
+
+    // Header Setup
+    doc.setFillColor(0, 201, 106);
+    doc.rect(0, 0, pageWidth, 45, 'F');
+    
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(26);
+    doc.setFont('helvetica', 'bold');
+    doc.text('SolarScan AI', margin, 24);
+    doc.setFontSize(14);
+    doc.setFont('helvetica', 'normal');
+    doc.text('Detailed Intelligence & Explanation Report', margin, 34);
+    
+    doc.setFontSize(9);
+    doc.text(`Date: ${new Date().toLocaleDateString()}`, pageWidth - margin, 24, { align: 'right' });
+    doc.text(`Lat/Lng: ${result.lat ? result.lat.toFixed(5) : 'N/A'}, ${result.lng ? result.lng.toFixed(5) : 'N/A'}`, pageWidth - margin, 30, { align: 'right' });
+    doc.text(`Engine: YOLOv8 Solar`, pageWidth - margin, 36, { align: 'right' });
+
+    yPos = 60;
+
+    // Introduction
+    addTitle('1. Report Overview');
+    addParagraph("This document provides a comprehensive analysis of the site's solar potential. The SolarScan AI detection engine scans aerial top-down imagery, identifying potential solar installations. Below is the detailed breakdown of the detected parameters, estimated financials, environmental impact, and individual panel statistics.");
+
+    // Section 2: Detection Specs
+    addTitle('2. Detection Specifications');
+    addGridRow('Engine Used', 'YOLOv8 Solar');
+    addGridRow('Image Type', result.image_metadata.source === 'USER_UPLOAD' ? 'PHOTO' : 'SATELLITE');
+    addGridRow('Buffer Analyzed', `${result.buffer_radius_sqft} sqft`);
+    addGridRow('Overall Status', result.has_solar ? "VERIFIED" : "NONE DETECTED");
+    addGridRow('QC Quality Check', result.qc_status);
+    addGridRow('Detection Confidence', `${(result.confidence * 100).toFixed(1)}%`);
+    addParagraph("These specifications define the parameters used by our computer vision model to scan the area. The model returns a confidence score indicating the probability that solar panels are correctly identified. The QC Quality Check implies whether the detected layout meets operational viability standards.");
+
+    // Section 3: Energy Estimates
+    addTitle('3. Energy Estimates & Analytics');
+    addGridRow('Panels Located', `${result.panels.length} Units`);
+    addGridRow('Total PV Area', `${result.total_area.toFixed(2)} m²`);
+    addGridRow('System Capacity', `${result.estimated_capacity_kw.toFixed(2)} kW`);
+    addGridRow('Annual Energy Production', `${Math.round(result.estimated_annual_production_kwh).toLocaleString()} kWh/y`);
+    if (bestPanel) {
+       addGridRow('Best Panel ID', `Panel #${bestPanel.id}`);
+       addGridRow('Largest Panel Size', `${bestPanel.area.toFixed(2)} m²`);
+    }
+    addParagraph("Based on the physical dimensions calculated by the AI, we estimate the system's generation capacity using standard panel yield calculations (approx. 0.2 kW per square meter). The expected annual production represents the kilowatt-hours (kWh) generated in a year assuming standard sun-hour conditions for the region.");
+
+    // Section 4: Financial Insights
+    addTitle('4. Financial Analysis');
+    addGridRow('Est. Investment/Cost', `$${result.financial.est_installation_cost.toLocaleString()}`);
+    addGridRow('Estimated Payback Period', `${result.financial.payback_years} Years`);
+    addGridRow('25-Year Lifetime Savings', `$${result.financial.lifetime_savings_25yr.toLocaleString()}`);
+    addParagraph("By producing your own solar energy, you offset energy normally purchased from the utility grid. The estimated lifetime savings calculates the total energy bills averted over a standard 25-year panel lifespan, subtracting the initial system investment. This payback period represents when the system becomes purely profitable.");
+
+    // Section 5: Environmental Impact
+    addTitle('5. Environmental Footprint');
+    addGridRow('CO2 Reduction', `${result.environmental.co2_saved_tons_yr.toFixed(1)} Tons/Year`);
+    addGridRow('Trees Planted Equivalent', `${result.environmental.trees_planted_equiv} Trees/Year`);
+    addGridRow('EV Miles Equivalent', `${result.environmental.ev_miles_equiv.toLocaleString()} Miles/Year`);
+    addParagraph("Solar energy replaces fossil-fuel dependent power generation. The metrics above translate the clean energy produced into real-world environmental impacts, comparing the offset CO2 to the carbon-absorbing capacity of fully-grown trees and the miles driven by an electric vehicle.");
+
+    // Section 6: Integrity & Technical
+    addTitle('6. Technical Integrity Specs');
+    addGridRow('Average Daily Irradiance', `${result.technical.irradiance_kwh_m2_day.toFixed(1)} kWh/m²/day`);
+    addGridRow('Recommended Inverter', `${result.technical.recommended_inverter_kw.toFixed(1)} kW Model`);
+    addGridRow('Suggested Battery Storage', `${result.technical.potential_storage_kwh.toFixed(1)} kWh`);
+    addParagraph("Irradiance measures the sun's power over the detected area. A suitably sized inverter is required to convert the panels' DC electricity to usable AC electricity for home/business use. We also suggest a battery size if you intend to store surplus energy for night-time utilization.");
+
+    // Section 7: Individual Panel Intelligence
+    addTitle('7. Detailed Panel Intelligence');
+    addParagraph("The following data isolates the performance attributes of each individual solar panel detected in the layout. Each panel's output is governed by its precise surface area and efficiency rating.");
+
+    panelMetrics.forEach(p => {
+       checkPageBreak(40);
+       doc.setFillColor(245, 250, 245);
+       doc.rect(margin, yPos, contentWidth, 36, 'F');
+       
+       doc.setTextColor(primaryColor);
+       doc.setFontSize(12);
+       doc.setFont('helvetica', 'bold');
+       doc.text(`Panel #${p.panelNumber} (Conf: ${p.confidence.toFixed(2)})`, margin + 4, yPos + 8);
+       
+       doc.setTextColor(darkColor);
+       doc.setFontSize(10);
+       doc.setFont('helvetica', 'normal');
+       doc.text(`Area: ${p.area.toFixed(2)} m²`, margin + 4, yPos + 16);
+       doc.text(`Capacity: ${formatNullable(p.estimated_capacity_kw, 2, ' kW')}`, margin + 60, yPos + 16);
+       doc.text(`Energy Creation: ${p.estimated_annual_production_kwh ? Math.round(p.estimated_annual_production_kwh).toLocaleString() + ' kWh/y' : 'N/A'}`, margin + 115, yPos + 16);
+
+       doc.text(`Efficiency Rating: ${p.efficiency_rating}%`, margin + 4, yPos + 24);
+       doc.text(`Lifetime Validity: ${p.lifetimeValidity}`, margin + 60, yPos + 24);
+       
+       doc.setFontSize(9);
+       doc.setTextColor(100, 100, 100);
+       doc.text(`This panel contributes ${formatNullable(p.estimated_capacity_kw, 2, ' kW')} directly to the cumulative system output.`, margin + 4, yPos + 32);
+
+       yPos += 42;
     });
-    doc.save(`SolarScan_Report_${result.lat || '0'}_${result.lng || '0'}.pdf`);
+
+    // Footer
+    checkPageBreak(25);
+    doc.setDrawColor(200, 200, 200);
+    doc.line(margin, yPos + 10, pageWidth - margin, yPos + 10);
+    doc.setFontSize(8);
+    doc.setTextColor(150, 150, 150);
+    doc.text('SolarScan AI - Automated Generated Intelligence Report.', pageWidth / 2, yPos + 16, { align: 'center' });
+    doc.text('All values are algorithmically estimated and should be verified by certified solar installers before proceeding.', pageWidth / 2, yPos + 20, { align: 'center' });
+
+    doc.save(`SolarScan_Detailed_Report_${result.lat ? result.lat.toFixed(4) : '0'}_${result.lng ? result.lng.toFixed(4) : '0'}.pdf`);
   };
 
   return (
@@ -157,8 +294,8 @@ const ResultsSection = ({ data, onReset }) => {
             <span style={s.titleDot} />
           </div>
 
-          <div style={s.grid}>
-            <div className="ss-left-card" style={s.sideCard}>
+          <div className="flex flex-col lg:grid lg:grid-cols-[220px_1fr_220px] gap-6 lg:gap-[18px] items-start w-full">
+            <div className="ss-left-card w-full" style={s.sideCard}>
               <Block title="VISUAL LEGEND" icon="layers" ic="#00c96a">
                 <div className="ss-legend-item" style={s.legendItem}>
                   <span style={{ ...s.dot, background:"#00ff88", boxShadow:"0 0 8px #00ff8899" }} />
@@ -178,25 +315,15 @@ const ResultsSection = ({ data, onReset }) => {
               </Block>
             </div>
 
-            <div className="ss-center" style={s.centerCol}>
+            <div className="ss-center w-full" style={s.centerCol}>
               <div style={s.imgWrap}>
                 <div className="ss-scan-line" />
-                <img src={result.overlay_path} alt="Solar Panel Detection" style={s.img} />
+                <img src={result.overlay_path} alt="Solar Panel Detection" className="w-full block h-[280px] md:h-[380px] lg:h-[480px] object-cover rounded-[18px]" />
                 <div style={s.gridOverlay} />
-                {result.panels.slice(0, 4).map((panel, i) => (
-                   <Tag 
-                    key={i}
-                    lbl={`P${panel.id} | ${panel.confidence.toFixed(2)} | ${panel.area.toFixed(1)}m²`} 
-                    clr={panel.id === result.best_panel_id ? "#00ff88" : "#00e5ff"} 
-                    top={`${15 + i*18}%`} 
-                    left={`${10 + i*12}%`} 
-                    del={`${1 + i*0.2}s`} 
-                   />
-                ))}
               </div>
             </div>
 
-            <div className="ss-right-card" style={s.sideCard}>
+            <div className="ss-right-card w-full" style={s.sideCard}>
               <Block title="PANEL ANALYTICS" icon="eye" ic="#00c96a">
                 <MR icon="check"    label="STATUS" value={result.has_solar ? "VERIFIED" : "NONE"}   hi={result.has_solar} />
                 <MR icon="layers"   label="COUNT"  value={`${result.panels.length} Units`} hi />
@@ -516,7 +643,6 @@ const s = {
   titleRow:{ display:"flex", alignItems:"center", justifyContent:"center", gap:"14px", marginBottom:"30px" },
   titleText:{ color:"#00c96a", fontFamily:"'Syne',sans-serif", fontWeight:"700", fontSize:"14px", letterSpacing:"0.12em", textTransform:"uppercase" },
   titleDot:{ display:"inline-block", width:"6px", height:"6px", borderRadius:"50%", background:"#00c96a", animation:"dotBeat 1.8s ease-in-out infinite" },
-  grid:{ display:"grid", gridTemplateColumns:"220px 1fr 220px", gap:"18px", alignItems:"start" },
   sideCard:{ background:"#ffffff", borderRadius:"18px", padding:"18px 16px", border:"1.5px solid #e4e8f0", boxShadow:"0 8px 32px rgba(0,0,0,0.12)" },
   block:{ marginBottom:"4px" }, blockHdr:{ display:"flex", alignItems:"center", gap:"8px", marginBottom:"10px" },
   blockTitle:{ color:"#111", fontFamily:"'Syne',sans-serif", fontWeight:"600", fontSize:"10px", letterSpacing:"0.16em", textTransform:"uppercase", margin:0 },
@@ -531,8 +657,7 @@ const s = {
   metLbl:{ color:"#777", fontSize:"11px", fontWeight:"500", letterSpacing:"0.08em", textTransform:"uppercase" },
   metVal:{ color:"#111", fontSize:"14px", fontWeight:"500" }, metHi:{ fontSize:"14px", fontWeight:"600" },
   centerCol:{ borderRadius:"18px", overflow:"hidden", lineHeight:0 },
-  imgWrap:{ position:"relative", borderRadius:"18px", overflow:"hidden", border:"1px solid #1e2735", boxShadow:"0 8px 40px rgba(0,201,106,0.15)" },
-  img:{ width:"100%", display:"block", height:"480px", objectFit:"cover", borderRadius:"18px" },
+  imgWrap:{ position:"relative", borderRadius:"18px", overflow:"hidden", border:"1px solid #1e2735", boxShadow:"0 8px 40px rgba(0,201,106,0.15)", width: "100%" },
   gridOverlay:{ position:"absolute", inset:0, backgroundImage:"linear-gradient(rgba(0,201,106,0.055) 1px,transparent 1px),linear-gradient(90deg,rgba(0,201,106,0.055) 1px,transparent 1px)", backgroundSize:"40px 40px", pointerEvents:"none", zIndex:2 },
   confWrap:{ display:"flex", alignItems:"center", gap:"14px", marginTop:"18px", background:"#07090e", borderRadius:"14px", padding:"12px 20px", border:"1.5px solid rgba(0,201,106,0.28)" },
   confLeft:{ display:"flex", alignItems:"center", gap:"10px", minWidth:"160px" },

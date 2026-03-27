@@ -87,7 +87,7 @@ async def health():
 @app.post("/predict")
 async def predict(
     file: UploadFile = File(...),
-    confidence: float = 0.5,
+    confidence: float = 0.25,
     image_type: str = Form("PHOTO"),
     latitude: float | None = Form(None),
     longitude: float | None = Form(None),
