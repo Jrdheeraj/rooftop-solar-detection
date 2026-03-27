@@ -7,8 +7,8 @@ const Navbar = () => {
 
   return (
     <>
-      <nav className="absolute top-0 left-0 right-0 z-[100] bg-white md:bg-transparent border-b border-gray-100 md:border-none">
-        <div className="max-w-7xl mx-auto px-5 md:px-8 h-16 md:h-20 flex items-center justify-between">
+      <nav className="absolute top-0 left-0 right-0 z-[100] bg-white lg:bg-transparent border-b border-gray-100 lg:border-none">
+        <div className="max-w-7xl mx-auto px-5 lg:px-8 h-16 lg:h-20 flex items-center justify-between">
           {/* LOGO */}
           <a href="#home" className="flex items-center gap-2.5 group cursor-pointer">
             <div className="w-9 h-9 bg-black rounded-xl flex items-center justify-center text-white shadow-lg group-hover:scale-110 transition-transform duration-300">
@@ -20,7 +20,7 @@ const Navbar = () => {
           </a>
 
           {/* DESKTOP NAV LINKS */}
-          <div className="hidden md:flex items-center gap-10">
+          <div className="hidden lg:flex items-center gap-10">
             <NavLink label="Home" href="#home" />
             <NavLink label="How it Works" href="#how-it-works" />
             <NavLink label="Analyze" href="#analyze" />
@@ -34,7 +34,7 @@ const Navbar = () => {
             href="#analyze"
             whileHover={{ scale: 1.05, backgroundColor: '#333' }}
             whileTap={{ scale: 0.95 }}
-            className="hidden md:flex bg-black text-white px-7 py-3 rounded-full font-bold items-center gap-2.5 text-sm transition-all shadow-2xl hover:shadow-black/20"
+            className="hidden lg:flex bg-black text-white px-7 py-3 rounded-full font-bold items-center gap-2.5 text-sm transition-all shadow-2xl hover:shadow-black/20"
           >
             Analyze Now
             <FiArrowRight className="text-lg" />
@@ -42,7 +42,7 @@ const Navbar = () => {
 
           {/* MOBILE MENU BUTTON */}
           <button 
-            className="md:hidden text-2xl text-slate-900 p-2"
+            className="lg:hidden text-2xl text-slate-900 p-2"
             onClick={() => setIsOpen(true)}
           >
             <FiMenu />
@@ -60,7 +60,7 @@ const Navbar = () => {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setIsOpen(false)}
-              className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[101] md:hidden"
+              className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[101] lg:hidden"
             />
 
             {/* SIDE DRAWER */}
@@ -69,7 +69,7 @@ const Navbar = () => {
               animate={{ x: 0 }}
               exit={{ x: '-100%' }}
               transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-              className="fixed top-0 left-0 h-screen w-[85%] max-w-sm bg-white/95 backdrop-blur-2xl z-[102] shadow-2xl flex flex-col md:hidden"
+              className="fixed top-0 left-0 h-screen w-[85%] max-w-sm bg-white/95 backdrop-blur-2xl z-[102] shadow-2xl flex flex-col lg:hidden"
             >
               <div className="px-6 h-20 flex items-center justify-between border-b border-gray-100">
                 <a href="#home" className="flex items-center gap-2.5" onClick={() => setIsOpen(false)}>
